@@ -42,6 +42,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
   int clientTransactionCount = 0;
   double clientTransactionTotal = 0;
   bool walletInitialized = false;
+  int portalSection = 0;
 
   @override
   void initState() {
@@ -719,40 +720,79 @@ class _LilyGoAppState extends State<LilyGoApp> {
       ? _walletGate()
       : DefaultTabController(
           length: 5,
-          child: Scaffold(
-            appBar: AppBar(title: const Text('Dolibarr Offline ERP'), actions: [
-              Chip(label: Text(_shortWallet(walletAddress!))),
-              IconButton(
-                  onPressed: _refresh,
-                  icon: const Icon(Icons.refresh),
-                  tooltip: 'Refresh data')
-            ]),
-            body: Column(children: [
-              Material(
+          child: Builder(builder: (tabContext) {
+            final controller = DefaultTabController.of(tabContext);
+            final destinations = [
+              (Icons.dashboard_outlined, 'Overview', '概要'),
+              (Icons.business_outlined, 'Third parties', '取引先'),
+              (Icons.inventory_2_outlined, 'Products', '商品'),
+              (Icons.receipt_long_outlined, 'Orders', '注文'),
+              (Icons.cell_tower, 'WebRTC', '接続'),
+            ];
+            return Scaffold(
+              appBar:
+                  AppBar(title: const Text('Dolibarr Offline ERP'), actions: [
+                Chip(label: Text(_shortWallet(walletAddress!))),
+                IconButton(
+                    onPressed: _refresh,
+                    icon: const Icon(Icons.refresh),
+                    tooltip: 'Refresh data')
+              ]),
+              body: Row(children: [
+                Material(
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  child: const TabBar(isScrollable: true, tabs: [
-                    Tab(text: 'Overview', icon: Icon(Icons.dashboard_outlined)),
-                    Tab(
-                        text: 'Third parties',
-                        icon: Icon(Icons.business_outlined)),
-                    Tab(
-                        text: 'Products',
-                        icon: Icon(Icons.inventory_2_outlined)),
-                    Tab(
-                        text: 'Orders',
-                        icon: Icon(Icons.receipt_long_outlined)),
-                    Tab(text: 'WebRTC', icon: Icon(Icons.cell_tower))
-                  ])),
-              Expanded(
-                  child: TabBarView(children: [
-                _overview(),
-                _customers(),
-                _products(),
-                _orders(),
-                const _WebRtcPanel()
-              ])),
-            ]),
-          ),
+                  child: SizedBox(
+                    width: 236,
+                    child: Column(children: [
+                      const SizedBox(height: 18),
+                      const ListTile(
+                          leading: Icon(Icons.storefront_outlined),
+                          title: Text('Sales workspace'),
+                          subtitle: Text('業務選單')),
+                      const Divider(),
+                      Expanded(
+                        child: ListView(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          children: destinations.indexed.map((entry) {
+                            final index = entry.$1;
+                            final item = entry.$2;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: ListTile(
+                                selected: portalSection == index,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                                leading: Icon(item.$1),
+                                title: Text(item.$2),
+                                subtitle: Text(item.$3),
+                                onTap: () {
+                                  setState(() => portalSection = index);
+                                  controller.animateTo(index);
+                                },
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      const Padding(
+                          padding: EdgeInsets.all(16),
+                          child:
+                              Text('オフライン業務端末', textAlign: TextAlign.center)),
+                    ]),
+                  ),
+                ),
+                const VerticalDivider(width: 1),
+                Expanded(
+                    child: TabBarView(children: [
+                  _overview(),
+                  _customers(),
+                  _products(),
+                  _orders(),
+                  const _WebRtcPanel()
+                ])),
+              ]),
+            );
+          }),
         );
 
   Widget _overview() => _Page(padding: 28, children: [
