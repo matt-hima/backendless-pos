@@ -73,9 +73,14 @@ class _LilyGoAppState extends State<LilyGoApp> {
                 'IndexedDB initialization timed out; using local menu fallback'))
       ]);
       final products = await indexedDb.products();
+      final normalizedProducts = products
+          .map((product) =>
+              {...product, 'rowid': product['rowid'] ?? product['id']})
+          .where((product) => product['rowid'] != null)
+          .toList();
       if (mounted)
         setState(() {
-          clientProducts = products;
+          clientProducts = normalizedProducts;
           clientReady = true;
         });
     } catch (error) {
@@ -93,6 +98,9 @@ class _LilyGoAppState extends State<LilyGoApp> {
           : ref.contains('DES')
               ? '甜點'
               : '主食';
+
+  int _clientProductId(Map<String, dynamic> product) =>
+      (product['rowid'] ?? product['id']) as int;
 
   Future<void> _start() async {
     if (databaseStarted) return;
@@ -252,7 +260,8 @@ class _LilyGoAppState extends State<LilyGoApp> {
   }
 
   Future<void> _itemDetail(Map<String, dynamic> product) async {
-    var quantity = cart[product['rowid'] as int] ?? 0;
+    final productId = _clientProductId(product);
+    var quantity = cart[productId] ?? 0;
     final selected = await showDialog<int>(
         context: context,
         builder: (dialogContext) => StatefulBuilder(
@@ -291,9 +300,9 @@ class _LilyGoAppState extends State<LilyGoApp> {
     if (selected == null) return;
     setState(() {
       if (selected == 0) {
-        cart.remove(product['rowid']);
+        cart.remove(productId);
       } else {
-        cart[product['rowid'] as int] = selected;
+        cart[productId] = selected;
       }
     });
   }
@@ -304,7 +313,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
     final lines = <Map<String, dynamic>>[];
     var total = 0.0;
     for (final product in clientProducts) {
-      final id = product['rowid'] as int;
+      final id = _clientProductId(product);
       final quantity = cart[id] ?? 0;
       if (quantity == 0) continue;
       final lineTotal = (product['price'] as num).toDouble() * quantity;
@@ -473,7 +482,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
             padding: const EdgeInsets.only(top: 18, bottom: 6),
             child: Text(title, style: Theme.of(context).textTheme.titleLarge)),
         ...products.map((product) {
-          final quantity = cart[product['rowid'] as int] ?? 0;
+          final quantity = cart[_clientProductId(product)] ?? 0;
           return Card(
               child: ListTile(
                   onTap: () => _itemDetail(product),
@@ -501,7 +510,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
         0,
         (sum, product) =>
             sum +
-            ((cart[product['rowid'] as int] ?? 0) *
+            ((cart[_clientProductId(product)] ?? 0) *
                 (product['price'] as num).toDouble() *
                 1.05));
     return SafeArea(
