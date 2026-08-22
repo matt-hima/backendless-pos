@@ -1,0 +1,122 @@
+# LilyGO ERP offline-first simulator
+
+This project simulates the full development loop:
+
+`mock WebRTC order → DuckDB-Wasm → Parquet export → HTTP PUT → UTM mock SD card`
+
+The LilyGO itself is represented by a FastAPI server. It only stores the uploaded binary file; all relational processing stays in the Flutter browser client.
+
+## 1. Start the simulated LilyGO in UTM
+
+Create or boot an Ubuntu/Debian VM in UTM. In the VM, copy the `mock_server/` directory (or copy the entire project), then run:
+
+```bash
+cd lilygo-erp
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r mock_server/requirements.txt
+python -m uvicorn mock_server.main:app --host 0.0.0.0 --port 8000
+```
+
+UTM networking must allow the host to reach the VM. With shared/NAT networking, find the VM address with:
+
+```bash
+ip -4 addr
+```
+
+Verify from the host browser or terminal that `http://VM_IP:8000/api/health` returns `{"status":"ok",...}`. Uploaded files appear in `mock_sd_card/dolibarr_orders.parquet` inside the VM.
+
+## 2. Configure the Flutter client
+
+On the host, install Flutter 3.22+ and enable web support. From this project directory:
+
+```bash
+flutter pub get
+flutter config --enable-web
+```
+
+The file `web/duckdb_bridge.js` loads DuckDB-Wasm from jsDelivr and exposes a small browser API used by `DatabaseService`. `web/index.html` loads that bridge before Flutter. An internet connection is needed the first time the DuckDB-Wasm JavaScript and worker assets are fetched; production deployments should self-host and pin those assets.
+
+Start the app with the VM address:
+
+```bash
+flutter run -d chrome --dart-define=API_URL=http://VM_IP:8000
+```
+
+The default address is `http://192.168.64.3:8000`, so the define is optional if that is your VM address. If Chrome blocks the request, check that the FastAPI process is bound to `0.0.0.0`, the VM networking mode exposes port 8000, and the app is using the VM IP rather than `localhost`.
+
+## 3. Test the flow
+
+The mock radio emits one order every 10 seconds. Each order contains a third party, contact, and order. The client:
+
+1. Creates the three Dolibarr-style tables in DuckDB-Wasm.
+2. Upserts the payload into `llx_societe`, `llx_socpeople`, and `llx_commande`.
+3. Exports a joined order view as `dolibarr_orders.parquet` in DuckDB-Wasm's virtual filesystem.
+4. Reads the file into `Uint8List` and sends it to `PUT /api/storage/sync`.
+
+The Flutter status card shows the latest order, Parquet byte count, and row count. The FastAPI console shows the request, and the VM's `mock_sd_card/` directory contains the resulting file.
+
+## Dolibarr workspace UI
+
+The Flutter client includes four tabs:
+
+- **Overview**: offline status and counts for orders, third parties, and products.
+- **Third parties**: reads `llx_societe` customer data.
+- **Products**: reads `llx_product` and supports creating/editing reference, label, price HT, VAT, and stock directly in DuckDB-Wasm.
+- **Orders**: reads `llx_commande` joined with the customer name.
+
+The product schema is:
+
+```sql
+llx_product(rowid, ref, label, price, tva_tx, stock, updated_at)
+```
+
+Mock order payloads now include a product and upsert it into `llx_product`. Product edits are local-first; the next Parquet sync includes the current order export.
+
+The Products tab's **Load 鼎泰豐 menu** action uses the same product-save function as **New product**. It upserts the predefined menu items (小籠包、燒賣、鍋貼、蒸餃、蛋炒飯、麵、湯、青菜與甜點). Every mock order randomly selects 2–3 different menu products, assigns each a quantity from 1–3, calculates the order total, and writes each relationship to `llx_commandedet`. The Orders tab displays every line separately.
+
+Orders use `llx_commande.fk_statut` with Dolibarr-style states: Draft, Validated, Accepted, In process, Delivered, and Canceled. Each order card has an operation menu for changing its transaction state without horizontal scrolling.
+
+## API contract
+
+```http
+PUT /api/storage/sync?filename=dolibarr_orders.parquet
+Content-Type: application/octet-stream
+
+<raw Parquet bytes>
+```
+
+The server streams the body directly to disk and sanitizes the filename to prevent path traversal. CORS allows all origins, methods, and headers for local development.
+
+## Firebase Hosting
+
+The Flutter client is deployed as a client-side SPA. The root route is the client landing page and `/portal` opens the Dolibarr order portal. Firebase rewrites both paths to `index.html`, so browser refresh and deep links work.
+
+```bash
+flutter build web --release --dart-define=API_URL=http://192.168.64.3:8000 --base-href=/
+firebase deploy --only hosting:remote-order --project glassnframeshop-69ed3
+```
+
+Live site: [remote-order.web.app](https://remote-order.web.app/) · Portal: [remote-order.web.app/portal](https://remote-order.web.app/portal)
+
+The root client uses `web/indexeddb_bridge.js` and stores client-side Dolibarr-shaped records in IndexedDB: `llx_product`, `llx_commande`, and `llx_commandedet`. Products are seeded or updated through the JavaScript bridge, item cards open detail dialogs, and **確認點餐** writes a new offline transaction with its lines. The portal continues to use DuckDB-Wasm for relational processing and Parquet export.
+
+## Channel links and FQDN deployment
+
+The client accepts a channel query parameter:
+
+```text
+https://remote-order.web.app/?channel=ABC123
+```
+
+The portal's **Create channel** action generates a code and shareable URL. Orders saved from that URL carry the channel code in their IndexedDB transaction record, keeping separate tables, rooms, or ordering sessions logically isolated.
+
+The hosted FQDN can save orders to browser IndexedDB, but it cannot directly write to a private ESP32/UTM IP from public HTTPS. For ESP32 sync, expose a secure HTTPS relay/API or run the client on the same reachable LAN; do not point a production hosted page at an unreachable private address.
+
+## WebRTC portal connection
+
+The portal WebRTC tab uses `stun:stun.l.google.com:19302` and provides editable offer/answer JSON fields. The portal clicks **Generate portal offer**, the remote client accepts that offer and returns an answer, and the portal applies the answer. This is manual signaling for development; Google STUN discovers routes but does not relay storage uploads or replace a signaling/relay service.
+
+## Portal wallet login
+
+DuckDB-Wasm is initialized only after entering `/portal` and connecting an injected EIP-1193 wallet through `flutter_web3`. The connected wallet address is displayed as the portal identity and is stored as the `wallet` key on client-side transactions. The root ordering page does not initialize DuckDB; it uses IndexedDB only.

@@ -1,0 +1,10 @@
+{
+  "hosting": {
+    "site": "remote-order",
+    "public": "build/web",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "cleanUrls": true,
+    "rewrites": [{"source": "**", "destination": "/index.html"}]
+  }
+}
+
