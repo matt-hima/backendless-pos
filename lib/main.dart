@@ -43,6 +43,9 @@ class _LilyGoAppState extends State<LilyGoApp> {
   double clientTransactionTotal = 0;
   bool walletInitialized = false;
   int portalSection = 0;
+  String walletPhone = '';
+  String walletBirthday = '';
+  bool rememberWalletInfo = false;
 
   @override
   void initState() {
@@ -228,7 +231,105 @@ class _LilyGoAppState extends State<LilyGoApp> {
             'Wallet connected and encryption initialized: ${_shortWallet(address)}';
       });
     await _loadClientStats();
+    await _loadWalletProfile(address);
     if (Uri.base.path == '/portal') await _start();
+  }
+
+  Future<void> _loadWalletProfile(String address) async {
+    final thirdparty = await indexedDb.walletThirdParty(address.toLowerCase());
+    final envelope = thirdparty?['encrypted_profile']?.toString();
+    if (envelope == null || envelope == 'null' || envelope.isEmpty) return;
+    try {
+      final profile = await walletCrypto.decrypt(envelope);
+      if (mounted)
+        setState(() {
+          walletPhone = profile['phone']?.toString() ?? '';
+          walletBirthday = profile['birthday']?.toString() ?? '';
+          rememberWalletInfo = true;
+        });
+    } catch (_) {
+      if (mounted)
+        setState(() => status = 'Remembered profile could not be decrypted');
+    }
+  }
+
+  Future<void> _editWalletProfile() async {
+    if (walletAddress == null) return;
+    final phone = TextEditingController(text: walletPhone);
+    final birthday = TextEditingController(text: walletBirthday);
+    var remember = rememberWalletInfo;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Remember contact information'),
+          content: SizedBox(
+            width: 430,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Text(
+                  'Optional. Phone and birthday are encrypted with this wallet before being remembered on this browser.'),
+              const SizedBox(height: 16),
+              TextField(
+                  controller: phone,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                      labelText: 'Phone number', border: OutlineInputBorder())),
+              const SizedBox(height: 12),
+              TextField(
+                  controller: birthday,
+                  keyboardType: TextInputType.datetime,
+                  decoration: const InputDecoration(
+                      labelText: 'Birthday (YYYY-MM-DD)',
+                      border: OutlineInputBorder())),
+              CheckboxListTile(
+                  value: remember,
+                  onChanged: (value) =>
+                      setDialogState(() => remember = value ?? false),
+                  title: const Text('Remember these details'),
+                  controlAffinity: ListTileControlAffinity.leading),
+              const Text(
+                  'Higher security: keep the recovery phrase offline and use it to restore this wallet if browser storage is lost.',
+                  style: TextStyle(fontSize: 12)),
+            ]),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel')),
+            FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Save'))
+          ],
+        ),
+      ),
+    );
+    if (result != true) {
+      phone.dispose();
+      birthday.dispose();
+      return;
+    }
+    final address = walletAddress!.toLowerCase();
+    final phoneValue = phone.text.trim();
+    final birthdayValue = birthday.text.trim();
+    final updated = _walletThirdParty(walletAddress!);
+    if (remember) {
+      updated['encrypted_profile'] = await walletCrypto
+          .encrypt({'phone': phoneValue, 'birthday': birthdayValue});
+    } else {
+      updated['encrypted_profile'] = null;
+    }
+    await indexedDb.saveWalletThirdParty(updated);
+    phone.dispose();
+    birthday.dispose();
+    if (mounted)
+      setState(() {
+        walletPhone = remember ? phoneValue : '';
+        walletBirthday = remember ? birthdayValue : '';
+        rememberWalletInfo = remember;
+        status = remember
+            ? 'Contact information encrypted and remembered for ${_shortWallet(address)}'
+            : 'Remembered contact information removed';
+      });
   }
 
   Future<String?> _walletChoice() => showDialog<String>(
@@ -236,7 +337,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
         builder: (dialogContext) => AlertDialog(
           title: const Text('Wallet login'),
           content: const Text(
-              'No browser wallet extension was found. Create a wallet in this browser or unlock an existing encrypted wallet.'),
+              'No browser wallet extension was found. Create or unlock a wallet in this browser. You can optionally remember encrypted contact details, or use the recovery phrase for higher security and portability.'),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(dialogContext, 'unlock'),
@@ -627,7 +728,10 @@ class _LilyGoAppState extends State<LilyGoApp> {
                                   onPressed: _connectWallet,
                                   icon: const Icon(Icons.login),
                                   label: const Text('Wallet login'))
-                              : const Icon(Icons.verified_user))),
+                              : OutlinedButton.icon(
+                                  onPressed: _editWalletProfile,
+                                  icon: const Icon(Icons.contact_page_outlined),
+                                  label: const Text('Remember info')))),
                   const SizedBox(height: 12),
                   ...categories.entries
                       .map((entry) => _clientCategory(entry.key, entry.value))
@@ -733,6 +837,10 @@ class _LilyGoAppState extends State<LilyGoApp> {
               appBar:
                   AppBar(title: const Text('Dolibarr Offline ERP'), actions: [
                 Chip(label: Text(_shortWallet(walletAddress!))),
+                IconButton(
+                    onPressed: _editWalletProfile,
+                    icon: const Icon(Icons.contact_page_outlined),
+                    tooltip: 'Remember contact information'),
                 IconButton(
                     onPressed: _refresh,
                     icon: const Icon(Icons.refresh),

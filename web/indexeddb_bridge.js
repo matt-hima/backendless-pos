@@ -63,6 +63,11 @@
       tx.objectStore('llx_societe').put(thirdparty);
       await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
     },
+    async walletThirdParty(wallet) {
+      await open();
+      const rows = await requestValue(transaction(['llx_societe']).objectStore('llx_societe').getAll());
+      return JSON.stringify(rows.find((row) => row.wallet === wallet) || null);
+    },
     async saveEncryptedTransaction(transactionJson) {
       await open();
       const transactionObject = JSON.parse(transactionJson);
