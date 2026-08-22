@@ -10,6 +10,18 @@
   "closeButton": "閉じる",
   "createButton": "作成",
   "editButton": "編集",
+  "skipButton": "スキップ",
+
+  "signInWithPasskeyButton": "パスキーでログイン",
+  "demoModeLandingButton": "デモモードを試す",
+  "demoModeBannerText": "デモモード",
+  "exitDemoButton": "デモを終了",
+  "passkeySetupTitle": "パスキーを設定しますか？",
+  "passkeySetupBody": "この端末の指紋、顔認証、またはPINを使って次回から素早くログインできます。これはこの端末とブラウザでのみ有効な機能で、他の場所からアカウントにアクセスする手段ではありません。",
+  "passkeySetupButton": "設定する",
+  "passkeyManageButton": "パスキーログインを設定",
+  "passkeyUnsupportedError": "パスキーログインを利用できません：{error}",
+  "statusPasskeyEnrolled": "この端末でパスキーログインの準備ができました",
 
   "accountEntryTitle": "ログイン",
   "accountEntryBody": "携帯電話番号と生年月日を入力してください。この端末に既にアカウントがあればログインし、なければ新しく作成します。",

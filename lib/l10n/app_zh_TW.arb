@@ -10,6 +10,18 @@
   "closeButton": "關閉",
   "createButton": "建立",
   "editButton": "編輯",
+  "skipButton": "略過",
+
+  "signInWithPasskeyButton": "使用密碼金鑰登入",
+  "demoModeLandingButton": "體驗示範模式",
+  "demoModeBannerText": "示範模式",
+  "exitDemoButton": "結束示範",
+  "passkeySetupTitle": "要設定密碼金鑰嗎？",
+  "passkeySetupBody": "下次可使用這台裝置的指紋、臉部辨識或 PIN 碼快速登入。這僅在這台裝置與瀏覽器上有效，並非從其他地方存取帳戶的方式。",
+  "passkeySetupButton": "設定",
+  "passkeyManageButton": "設定密碼金鑰登入",
+  "passkeyUnsupportedError": "無法使用密碼金鑰登入：{error}",
+  "statusPasskeyEnrolled": "這台裝置已可使用密碼金鑰登入",
 
   "accountEntryTitle": "登入",
   "accountEntryBody": "輸入您的手機號碼與生日。如果這台裝置已有帳戶，我們會為您登入；否則會建立新帳戶。",

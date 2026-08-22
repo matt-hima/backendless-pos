@@ -153,6 +153,72 @@ abstract class AppLocalizations {
   /// **'Edit'**
   String get editButton;
 
+  /// No description provided for @skipButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get skipButton;
+
+  /// No description provided for @signInWithPasskeyButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with a passkey'**
+  String get signInWithPasskeyButton;
+
+  /// No description provided for @demoModeLandingButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Try demo mode'**
+  String get demoModeLandingButton;
+
+  /// No description provided for @demoModeBannerText.
+  ///
+  /// In en, this message translates to:
+  /// **'Demo mode'**
+  String get demoModeBannerText;
+
+  /// No description provided for @exitDemoButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit demo'**
+  String get exitDemoButton;
+
+  /// No description provided for @passkeySetupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set up a passkey?'**
+  String get passkeySetupTitle;
+
+  /// No description provided for @passkeySetupBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in faster next time using this device\'s fingerprint, face, or PIN. This only works on this device and browser — it\'s a local convenience, not a way to access your account elsewhere.'**
+  String get passkeySetupBody;
+
+  /// No description provided for @passkeySetupButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Set up'**
+  String get passkeySetupButton;
+
+  /// No description provided for @passkeyManageButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Set up passkey sign-in'**
+  String get passkeyManageButton;
+
+  /// No description provided for @passkeyUnsupportedError.
+  ///
+  /// In en, this message translates to:
+  /// **'Passkey sign-in isn\'t available: {error}'**
+  String passkeyUnsupportedError(String error);
+
+  /// No description provided for @statusPasskeyEnrolled.
+  ///
+  /// In en, this message translates to:
+  /// **'Passkey sign-in is ready on this device'**
+  String get statusPasskeyEnrolled;
+
   /// No description provided for @accountEntryTitle.
   ///
   /// In en, this message translates to:

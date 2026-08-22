@@ -33,6 +33,43 @@ class AppLocalizationsEs extends AppLocalizations {
   String get editButton => 'Editar';
 
   @override
+  String get skipButton => 'Omitir';
+
+  @override
+  String get signInWithPasskeyButton => 'Iniciar sesión con una passkey';
+
+  @override
+  String get demoModeLandingButton => 'Probar el modo de demostración';
+
+  @override
+  String get demoModeBannerText => 'Modo de demostración';
+
+  @override
+  String get exitDemoButton => 'Salir de la demostración';
+
+  @override
+  String get passkeySetupTitle => '¿Configurar una passkey?';
+
+  @override
+  String get passkeySetupBody =>
+      'Inicie sesión más rápido la próxima vez usando la huella, el rostro o el PIN de este dispositivo. Esto solo funciona en este dispositivo y navegador; es una comodidad local, no una forma de acceder a su cuenta desde otro lugar.';
+
+  @override
+  String get passkeySetupButton => 'Configurar';
+
+  @override
+  String get passkeyManageButton => 'Configurar inicio de sesión con passkey';
+
+  @override
+  String passkeyUnsupportedError(String error) {
+    return 'El inicio de sesión con passkey no está disponible: $error';
+  }
+
+  @override
+  String get statusPasskeyEnrolled =>
+      'El inicio de sesión con passkey ya está listo en este dispositivo';
+
+  @override
   String get accountEntryTitle => 'Iniciar sesión';
 
   @override

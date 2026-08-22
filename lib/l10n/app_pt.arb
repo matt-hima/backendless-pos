@@ -10,6 +10,18 @@
   "closeButton": "Fechar",
   "createButton": "Criar",
   "editButton": "Editar",
+  "skipButton": "Ignorar",
+
+  "signInWithPasskeyButton": "Iniciar sessão com uma passkey",
+  "demoModeLandingButton": "Experimentar modo de demonstração",
+  "demoModeBannerText": "Modo de demonstração",
+  "exitDemoButton": "Sair da demonstração",
+  "passkeySetupTitle": "Configurar uma passkey?",
+  "passkeySetupBody": "Inicie sessão mais depressa da próxima vez usando a impressão digital, o rosto ou o PIN deste dispositivo. Isto só funciona neste dispositivo e navegador — é uma conveniência local, não uma forma de aceder à sua conta noutro local.",
+  "passkeySetupButton": "Configurar",
+  "passkeyManageButton": "Configurar início de sessão com passkey",
+  "passkeyUnsupportedError": "O início de sessão com passkey não está disponível: {error}",
+  "statusPasskeyEnrolled": "O início de sessão com passkey está pronto neste dispositivo",
 
   "accountEntryTitle": "Iniciar sessão",
   "accountEntryBody": "Introduza o seu número de telemóvel e data de nascimento. Iniciamos a sua sessão se este dispositivo já tiver uma conta, ou criamos uma nova se não tiver.",

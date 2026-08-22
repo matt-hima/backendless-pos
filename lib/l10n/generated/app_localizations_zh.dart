@@ -33,6 +33,42 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editButton => '編輯';
 
   @override
+  String get skipButton => '略過';
+
+  @override
+  String get signInWithPasskeyButton => '使用密碼金鑰登入';
+
+  @override
+  String get demoModeLandingButton => '體驗示範模式';
+
+  @override
+  String get demoModeBannerText => '示範模式';
+
+  @override
+  String get exitDemoButton => '結束示範';
+
+  @override
+  String get passkeySetupTitle => '要設定密碼金鑰嗎？';
+
+  @override
+  String get passkeySetupBody =>
+      '下次可使用這台裝置的指紋、臉部辨識或 PIN 碼快速登入。這僅在這台裝置與瀏覽器上有效，並非從其他地方存取帳戶的方式。';
+
+  @override
+  String get passkeySetupButton => '設定';
+
+  @override
+  String get passkeyManageButton => '設定密碼金鑰登入';
+
+  @override
+  String passkeyUnsupportedError(String error) {
+    return '無法使用密碼金鑰登入：$error';
+  }
+
+  @override
+  String get statusPasskeyEnrolled => '這台裝置已可使用密碼金鑰登入';
+
+  @override
   String get accountEntryTitle => '登入';
 
   @override
@@ -859,6 +895,42 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get editButton => '編輯';
+
+  @override
+  String get skipButton => '略過';
+
+  @override
+  String get signInWithPasskeyButton => '使用密碼金鑰登入';
+
+  @override
+  String get demoModeLandingButton => '體驗示範模式';
+
+  @override
+  String get demoModeBannerText => '示範模式';
+
+  @override
+  String get exitDemoButton => '結束示範';
+
+  @override
+  String get passkeySetupTitle => '要設定密碼金鑰嗎？';
+
+  @override
+  String get passkeySetupBody =>
+      '下次可使用這台裝置的指紋、臉部辨識或 PIN 碼快速登入。這僅在這台裝置與瀏覽器上有效，並非從其他地方存取帳戶的方式。';
+
+  @override
+  String get passkeySetupButton => '設定';
+
+  @override
+  String get passkeyManageButton => '設定密碼金鑰登入';
+
+  @override
+  String passkeyUnsupportedError(String error) {
+    return '無法使用密碼金鑰登入：$error';
+  }
+
+  @override
+  String get statusPasskeyEnrolled => '這台裝置已可使用密碼金鑰登入';
 
   @override
   String get accountEntryTitle => '登入';

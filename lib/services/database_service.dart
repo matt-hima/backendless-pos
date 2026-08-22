@@ -279,12 +279,15 @@ class DatabaseService {
         UPDATE cms.items SET data = $json, updated_at = now() WHERE rowid = $id;
       ''');
     } else {
-      final itemId = DateTime.now().millisecondsSinceEpoch;
+      final itemId = _nextId();
       await execute('''
         INSERT INTO cms.items (rowid, collection, data) VALUES ($itemId, ${_q(collection)}, $json);
       ''');
     }
   }
+
+  int _idSeq = 0;
+  int _nextId() => DateTime.now().millisecondsSinceEpoch * 1000 + (_idSeq++ % 1000);
 
   Future<List<Map<String, dynamic>>> cmsItems(String collection) async {
     final raw = await rows(

@@ -13,6 +13,7 @@ import 'services/indexed_db_service.dart';
 import 'services/wallet_auth_service.dart';
 import 'services/wallet_crypto_service.dart';
 import 'services/local_wallet_service.dart';
+import 'services/passkey_service.dart';
 import 'services/channel_print_service.dart';
 import 'services/backup_service.dart';
 import 'services/webrtc_service.dart';
@@ -81,6 +82,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
   final walletAuth = WalletAuthService();
   final walletCrypto = WalletCryptoService();
   final localWallet = LocalWalletService();
+  final passkey = PasskeyService();
   final channelPrint = ChannelPrintService();
   final backup = BackupService();
   final webRtc = WebRtcService();
@@ -410,6 +412,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
     final address = created['address']!.toString();
     final mnemonic = created['mnemonic']?.toString();
     if (mnemonic != null) await _showRecoveryPhrase(mnemonic, mandatory: false);
+    await _offerPasskeySetup(passphrase);
     final updated = _walletThirdParty(address);
     updated['encrypted_profile'] = await walletCrypto.encrypt(
         {'phone_mobile': mobile, 'birthday': birthday, 'locale': _localeCode(currentLocale)});
@@ -513,6 +516,13 @@ class _LilyGoAppState extends State<LilyGoApp> {
                   title: Text(l.preferencesRememberCheckbox),
                   controlAffinity: ListTileControlAffinity.leading),
               Text(l.preferencesSecurityNote, style: const TextStyle(fontSize: 12)),
+              const SizedBox(height: 8),
+              Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                      onPressed: _managePasskey,
+                      icon: const Icon(Icons.fingerprint),
+                      label: Text(l.passkeyManageButton))),
             ]),
           ),
           actions: [
@@ -656,6 +666,49 @@ class _LilyGoAppState extends State<LilyGoApp> {
           ),
         ) ??
         false;
+  }
+
+  Future<void> _managePasskey() async {
+    final l = _l;
+    final passphrase = await _passphraseDialog(l.unlockTitle, l.unlockHint);
+    if (passphrase == null) return;
+    try {
+      final address = await localWallet.unlock(passphrase);
+      if (address == null || address.toLowerCase() != walletAddress?.toLowerCase()) {
+        if (mounted) setState(() => status = l.accountMismatchError);
+        return;
+      }
+    } catch (_) {
+      if (mounted) setState(() => status = l.accountMismatchError);
+      return;
+    }
+    await _offerPasskeySetup(passphrase);
+  }
+
+  Future<void> _offerPasskeySetup(String passphrase) async {
+    final l = _l;
+    final setUp = await showDialog<bool>(
+      context: navigatorKey.currentContext!,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l.passkeySetupTitle),
+        content: Text(l.passkeySetupBody),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(l.skipButton)),
+          FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(l.passkeySetupButton)),
+        ],
+      ),
+    );
+    if (setUp != true) return;
+    try {
+      await passkey.enroll(passphrase).timeout(const Duration(seconds: 30));
+      if (mounted) setState(() => status = l.statusPasskeyEnrolled);
+    } catch (error) {
+      if (mounted) setState(() => status = l.passkeyUnsupportedError(error.toString()));
+    }
   }
 
   Future<String?> _recoveryPhraseDialog() async {
@@ -1679,7 +1732,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
             ])));
   }
 
-  Widget _walletGate() {
+  Widget _portalLanding() {
     final l = _l;
     final context = navigatorKey.currentContext!;
     return Scaffold(
@@ -1689,7 +1742,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
           child: Padding(
             padding: const EdgeInsets.all(32),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.account_balance_wallet, size: 56),
+              const Icon(Icons.storefront_outlined, size: 56),
               const SizedBox(height: 16),
               Text(l.accountGateHeadline,
                   style: Theme.of(context).textTheme.headlineSmall),
@@ -1700,6 +1753,18 @@ class _LilyGoAppState extends State<LilyGoApp> {
                   onPressed: _connectWallet,
                   icon: const Icon(Icons.login),
                   label: Text(l.accountSignInButton)),
+              if (passkey.hasPasskey()) ...[
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                    onPressed: _signInWithPasskey,
+                    icon: const Icon(Icons.fingerprint),
+                    label: Text(l.signInWithPasskeyButton)),
+              ],
+              const SizedBox(height: 10),
+              TextButton.icon(
+                  onPressed: _enterDemoMode,
+                  icon: const Icon(Icons.play_circle_outline),
+                  label: Text(l.demoModeLandingButton)),
             ]),
           ),
         ),
@@ -1707,8 +1772,32 @@ class _LilyGoAppState extends State<LilyGoApp> {
     );
   }
 
+  Future<void> _signInWithPasskey() async {
+    final l = _l;
+    try {
+      final passphrase = await passkey.unlock().timeout(const Duration(seconds: 30));
+      final address = await localWallet.unlock(passphrase);
+      if (address == null) throw Exception(l.noAccountFoundMessage);
+      await _finishWalletLogin(address, local: true);
+    } catch (error) {
+      if (mounted) setState(() => status = l.passkeyUnsupportedError(error.toString()));
+    }
+  }
+
+  Future<void> _enterDemoMode() async {
+    if (mounted) setState(() => walletAddress = 'demo-mode');
+    await _start();
+    await _loadDintaifungMenu();
+    await _loadDemoMenuContent();
+    await _seedMachines();
+  }
+
+  void _exitDemoMode() {
+    setState(() => walletAddress = null);
+  }
+
   Widget _portal() {
-    if (walletAddress == null) return _walletGate();
+    if (walletAddress == null) return _portalLanding();
     final l = _l;
     return DefaultTabController(
       length: 9,
@@ -1727,7 +1816,13 @@ class _LilyGoAppState extends State<LilyGoApp> {
         ];
         return Scaffold(
           appBar: AppBar(title: Text(l.appTitle), actions: [
-            Chip(label: Text(_shortWallet(walletAddress!))),
+            if (walletAddress == 'demo-mode') ...[
+              Chip(
+                  label: Text(l.demoModeBannerText),
+                  backgroundColor: Colors.amber.shade200),
+              TextButton(onPressed: _exitDemoMode, child: Text(l.exitDemoButton)),
+            ] else
+              Chip(label: Text(_shortWallet(walletAddress!))),
             _connectionChip(onTap: () {
               setState(() => portalSection = 4);
               controller.animateTo(4);

@@ -33,6 +33,42 @@ class AppLocalizationsJa extends AppLocalizations {
   String get editButton => '編集';
 
   @override
+  String get skipButton => 'スキップ';
+
+  @override
+  String get signInWithPasskeyButton => 'パスキーでログイン';
+
+  @override
+  String get demoModeLandingButton => 'デモモードを試す';
+
+  @override
+  String get demoModeBannerText => 'デモモード';
+
+  @override
+  String get exitDemoButton => 'デモを終了';
+
+  @override
+  String get passkeySetupTitle => 'パスキーを設定しますか？';
+
+  @override
+  String get passkeySetupBody =>
+      'この端末の指紋、顔認証、またはPINを使って次回から素早くログインできます。これはこの端末とブラウザでのみ有効な機能で、他の場所からアカウントにアクセスする手段ではありません。';
+
+  @override
+  String get passkeySetupButton => '設定する';
+
+  @override
+  String get passkeyManageButton => 'パスキーログインを設定';
+
+  @override
+  String passkeyUnsupportedError(String error) {
+    return 'パスキーログインを利用できません：$error';
+  }
+
+  @override
+  String get statusPasskeyEnrolled => 'この端末でパスキーログインの準備ができました';
+
+  @override
   String get accountEntryTitle => 'ログイン';
 
   @override

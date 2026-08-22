@@ -10,6 +10,21 @@
   "closeButton": "Close",
   "createButton": "Create",
   "editButton": "Edit",
+  "skipButton": "Skip",
+
+  "signInWithPasskeyButton": "Sign in with a passkey",
+  "demoModeLandingButton": "Try demo mode",
+  "demoModeBannerText": "Demo mode",
+  "exitDemoButton": "Exit demo",
+  "passkeySetupTitle": "Set up a passkey?",
+  "passkeySetupBody": "Sign in faster next time using this device's fingerprint, face, or PIN. This only works on this device and browser — it's a local convenience, not a way to access your account elsewhere.",
+  "passkeySetupButton": "Set up",
+  "passkeyManageButton": "Set up passkey sign-in",
+  "passkeyUnsupportedError": "Passkey sign-in isn't available: {error}",
+  "@passkeyUnsupportedError": {
+    "placeholders": { "error": {"type": "String"} }
+  },
+  "statusPasskeyEnrolled": "Passkey sign-in is ready on this device",
 
   "accountEntryTitle": "Sign in",
   "accountEntryBody": "Enter your mobile number and birthday. We'll sign you in if this device already has an account, or set one up if it doesn't.",

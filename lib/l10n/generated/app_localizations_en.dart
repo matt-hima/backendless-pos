@@ -33,6 +33,42 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editButton => 'Edit';
 
   @override
+  String get skipButton => 'Skip';
+
+  @override
+  String get signInWithPasskeyButton => 'Sign in with a passkey';
+
+  @override
+  String get demoModeLandingButton => 'Try demo mode';
+
+  @override
+  String get demoModeBannerText => 'Demo mode';
+
+  @override
+  String get exitDemoButton => 'Exit demo';
+
+  @override
+  String get passkeySetupTitle => 'Set up a passkey?';
+
+  @override
+  String get passkeySetupBody =>
+      'Sign in faster next time using this device\'s fingerprint, face, or PIN. This only works on this device and browser — it\'s a local convenience, not a way to access your account elsewhere.';
+
+  @override
+  String get passkeySetupButton => 'Set up';
+
+  @override
+  String get passkeyManageButton => 'Set up passkey sign-in';
+
+  @override
+  String passkeyUnsupportedError(String error) {
+    return 'Passkey sign-in isn\'t available: $error';
+  }
+
+  @override
+  String get statusPasskeyEnrolled => 'Passkey sign-in is ready on this device';
+
+  @override
   String get accountEntryTitle => 'Sign in';
 
   @override
