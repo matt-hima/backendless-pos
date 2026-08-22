@@ -18,6 +18,12 @@
 
   window.WalletCryptoBridge = {
     async initWallet(address) { await derive(address); return owner; },
+    async initLocalWallet(address, secret) {
+      const material = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(secret));
+      key = await crypto.subtle.importKey('raw', material, 'AES-GCM', false, ['encrypt', 'decrypt']);
+      owner = address.toLowerCase();
+      return owner;
+    },
     async encrypt(value) {
       if (!key) throw new Error('Wallet encryption is not initialized');
       const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -33,4 +39,3 @@
     },
   };
 })();
-

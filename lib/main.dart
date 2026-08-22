@@ -8,6 +8,7 @@ import 'services/webrtc_mock_service.dart';
 import 'services/indexed_db_service.dart';
 import 'services/wallet_auth_service.dart';
 import 'services/wallet_crypto_service.dart';
+import 'services/local_wallet_service.dart';
 import 'services/webrtc_service.dart';
 
 void main() => runApp(const LilyGoApp());
@@ -24,6 +25,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
   final indexedDb = IndexedDbService();
   final walletAuth = WalletAuthService();
   final walletCrypto = WalletCryptoService();
+  final localWallet = LocalWalletService();
   late final ApiService api;
   StreamSubscription<OrderPayload>? subscription;
   String status = 'Starting DuckDB-Wasm…';
@@ -199,28 +201,103 @@ class _LilyGoAppState extends State<LilyGoApp> {
   Future<void> _connectWallet() async {
     try {
       final address = await walletAuth.connect();
-      if (address == null) {
-        if (mounted)
-          setState(() => status =
-              'No browser wallet detected. Install MetaMask or another EIP-1193 wallet.');
+      if (address != null) {
+        await _finishWalletLogin(address);
         return;
       }
-      await walletCrypto.initialize(address);
-      final thirdparty = _walletThirdParty(address);
-      await indexedDb.saveWalletThirdParty(thirdparty);
-      if (mounted)
-        setState(() {
-          walletAddress = address;
-          walletInitialized = true;
-          status =
-              'Wallet connected and encryption initialized: ${_shortWallet(address)}';
-        });
-      await _loadClientStats();
-      if (Uri.base.path == '/portal') await _start();
+      final action = await _walletChoice();
+      if (action == 'create') await _createLocalWallet();
+      if (action == 'unlock') await _unlockLocalWallet();
     } catch (error) {
       if (mounted)
         setState(() => status = 'Wallet login canceled or failed: $error');
     }
+  }
+
+  Future<void> _finishWalletLogin(String address, {bool local = false}) async {
+    if (!local) await walletCrypto.initialize(address);
+    final thirdparty = _walletThirdParty(address);
+    await indexedDb.saveWalletThirdParty(thirdparty);
+    if (mounted)
+      setState(() {
+        walletAddress = address;
+        walletInitialized = true;
+        status =
+            'Wallet connected and encryption initialized: ${_shortWallet(address)}';
+      });
+    await _loadClientStats();
+    if (Uri.base.path == '/portal') await _start();
+  }
+
+  Future<String?> _walletChoice() => showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Wallet login'),
+          content: const Text(
+              'No browser wallet extension was found. Create a wallet in this browser or unlock an existing encrypted wallet.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(dialogContext, 'unlock'),
+                child: const Text('Unlock wallet')),
+            FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, 'create'),
+                child: const Text('Create wallet')),
+          ],
+        ),
+      );
+
+  Future<void> _createLocalWallet() async {
+    final passphrase = await _passphraseDialog('Create wallet',
+        'Create a passphrase (8+ characters). It cannot be recovered.');
+    if (passphrase == null) return;
+    final confirm = await _passphraseDialog(
+        'Confirm passphrase', 'Enter the same passphrase again.');
+    if (confirm != passphrase) {
+      if (mounted) setState(() => status = 'Passphrases did not match');
+      return;
+    }
+    final address = await localWallet.create(passphrase);
+    await _finishWalletLogin(address, local: true);
+  }
+
+  Future<void> _unlockLocalWallet() async {
+    if (!await localWallet.hasWallet()) {
+      if (mounted)
+        setState(() => status = 'No local wallet found. Create one first.');
+      return;
+    }
+    final passphrase = await _passphraseDialog(
+        'Unlock wallet', 'Enter your wallet passphrase.');
+    if (passphrase == null) return;
+    final address = await localWallet.unlock(passphrase);
+    if (address == null) throw Exception('No local wallet found');
+    await _finishWalletLogin(address, local: true);
+  }
+
+  Future<String?> _passphraseDialog(String title, String hint) async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+            controller: controller,
+            obscureText: true,
+            autofocus: true,
+            decoration: InputDecoration(
+                labelText: hint, border: const OutlineInputBorder())),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, controller.text),
+              child: const Text('Continue'))
+        ],
+      ),
+    );
+    controller.dispose();
+    return result;
   }
 
   Map<String, dynamic> _walletThirdParty(String address) {
@@ -544,7 +621,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
                     style: Theme.of(context).textTheme.headlineSmall),
                 const SizedBox(height: 8),
                 const Text(
-                    'Your wallet address is used as the portal key. No private key is stored.'),
+                    'Your wallet address is the portal key. Local wallets are stored as encrypted keystores protected by your passphrase.'),
                 const SizedBox(height: 20),
                 FilledButton.icon(
                     onPressed: _connectWallet,
