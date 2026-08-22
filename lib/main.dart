@@ -20,6 +20,7 @@ class LilyGoApp extends StatefulWidget {
 }
 
 class _LilyGoAppState extends State<LilyGoApp> {
+  final navigatorKey = GlobalKey<NavigatorState>();
   final db = DatabaseService();
   final radio = WebRtcMockService();
   final indexedDb = IndexedDbService();
@@ -165,7 +166,8 @@ class _LilyGoAppState extends State<LilyGoApp> {
 
   Future<void> _editProduct([Map<String, dynamic>? row]) async {
     final result = await showDialog<_ProductDraft>(
-        context: context, builder: (_) => _ProductDialog(row: row));
+        context: navigatorKey.currentContext!,
+        builder: (_) => _ProductDialog(row: row));
     if (result == null) return;
     await db.saveProduct(
         id: row?['rowid'] as int?,
@@ -199,7 +201,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
     if (walletAddress == null) await _connectWallet();
     if (walletAddress == null) return;
     await _start();
-    if (mounted) Navigator.of(context).pushNamed('/portal');
+    if (mounted) navigatorKey.currentState!.pushNamed('/portal');
   }
 
   Future<void> _connectWallet() async {
@@ -259,7 +261,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
     final birthday = TextEditingController(text: walletBirthday);
     var remember = rememberWalletInfo;
     final result = await showDialog<bool>(
-      context: context,
+      context: navigatorKey.currentContext!,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('Remember contact information'),
@@ -333,7 +335,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
   }
 
   Future<String?> _walletChoice() => showDialog<String>(
-        context: context,
+        context: navigatorKey.currentContext!,
         builder: (dialogContext) => AlertDialog(
           title: const Text('Wallet login'),
           content: const Text(
@@ -396,7 +398,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
   Future<bool> _showRecoveryPhrase(String phrase) async {
     var confirmed = false;
     return await showDialog<bool>(
-          context: context,
+          context: navigatorKey.currentContext!,
           barrierDismissible: false,
           builder: (dialogContext) => StatefulBuilder(
             builder: (context, setDialogState) => AlertDialog(
@@ -434,7 +436,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
   Future<String?> _recoveryPhraseDialog() async {
     final controller = TextEditingController();
     final result = await showDialog<String>(
-      context: context,
+      context: navigatorKey.currentContext!,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Restore wallet'),
         content: TextField(
@@ -461,7 +463,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
   Future<String?> _passphraseDialog(String title, String hint) async {
     final controller = TextEditingController();
     final result = await showDialog<String>(
-      context: context,
+      context: navigatorKey.currentContext!,
       builder: (dialogContext) => AlertDialog(
         title: Text(title),
         content: TextField(
@@ -524,7 +526,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
     final productId = _clientProductId(product);
     var quantity = cart[productId] ?? 0;
     final selected = await showDialog<int>(
-        context: context,
+        context: navigatorKey.currentContext!,
         builder: (dialogContext) => StatefulBuilder(
             builder: (context, setDialogState) => AlertDialog(
                     title: Text(product['label'].toString()),
@@ -616,7 +618,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
             'Order WEB-$transactionId encrypted for this wallet and saved offline';
       });
     if (mounted)
-      ScaffoldMessenger.of(context)
+      ScaffoldMessenger.of(navigatorKey.currentContext!)
           .showSnackBar(const SnackBar(content: Text('Order saved offline')));
   }
 
@@ -627,7 +629,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
   Future<void> _createChannel() async {
     final nameController = TextEditingController(text: '鼎泰豐桌台頻道');
     final name = await showDialog<String>(
-        context: context,
+        context: navigatorKey.currentContext!,
         builder: (dialogContext) => AlertDialog(
                 title: const Text('Create order channel'),
                 content: TextField(
@@ -650,7 +652,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
     final link = '${Uri.base.origin}/?channel=${channel['code']}';
     if (!mounted) return;
     showDialog<void>(
-        context: context,
+        context: navigatorKey.currentContext!,
         builder: (dialogContext) => AlertDialog(
                 title: Text('Channel ${channel['code']} ready'),
                 content: SelectableText(link),
@@ -672,6 +674,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
   Widget build(BuildContext context) => MaterialApp(
         title: 'Dolibarr Offline ERP',
         theme: ThemeData(colorSchemeSeed: Colors.indigo, useMaterial3: true),
+        navigatorKey: navigatorKey,
         initialRoute: Uri.base.path == '/portal' ? '/portal' : '/',
         routes: {'/': (_) => _clientHome(), '/portal': (_) => _portal()},
       );
