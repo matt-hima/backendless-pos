@@ -407,5 +407,19 @@
   "clientBookingTimeLabel": "Time",
   "clientBookingPartySizeLabel": "Party size",
   "clientBookingSubmitButton": "Request booking",
-  "statusBookingRequested": "Booking request sent"
+  "statusBookingRequested": "Booking request sent",
+
+  "navAccessControl": "Access control",
+  "membersSectionTitle": "Members",
+  "membersSectionSubtitle": "Who can access this store's portal, and what they can do",
+  "membersEmpty": "No members added yet. You're the only one with access.",
+  "noRoleLabel": "No role",
+  "addMemberButton": "Add member",
+  "walletAddressFieldLabel": "Their account address",
+  "roleFieldLabel": "Role",
+  "rolesSectionTitle": "Roles",
+  "newRoleButton": "New role",
+  "roleNameFieldLabel": "Role name",
+  "statusRoleGranted": "Role granted",
+  "statusRoleRevoked": "Role removed"
 }

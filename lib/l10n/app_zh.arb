@@ -258,5 +258,18 @@
   "clientBookingTimeLabel": "時間",
   "clientBookingPartySizeLabel": "人數",
   "clientBookingSubmitButton": "送出預約",
-  "statusBookingRequested": "已送出預約請求"
+  "statusBookingRequested": "已送出預約請求",
+  "navAccessControl": "存取權限",
+  "membersSectionTitle": "成員",
+  "membersSectionSubtitle": "誰能存取此門市的後台，以及各自的權限範圍",
+  "membersEmpty": "尚未新增任何成員，目前只有您能存取。",
+  "noRoleLabel": "無角色",
+  "addMemberButton": "新增成員",
+  "walletAddressFieldLabel": "對方的帳戶地址",
+  "roleFieldLabel": "角色",
+  "rolesSectionTitle": "角色",
+  "newRoleButton": "新增角色",
+  "roleNameFieldLabel": "角色名稱",
+  "statusRoleGranted": "已授予角色",
+  "statusRoleRevoked": "已移除角色"
 }

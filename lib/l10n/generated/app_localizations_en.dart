@@ -886,4 +886,45 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statusBookingRequested => 'Booking request sent';
+
+  @override
+  String get navAccessControl => 'Access control';
+
+  @override
+  String get membersSectionTitle => 'Members';
+
+  @override
+  String get membersSectionSubtitle =>
+      'Who can access this store\'s portal, and what they can do';
+
+  @override
+  String get membersEmpty =>
+      'No members added yet. You\'re the only one with access.';
+
+  @override
+  String get noRoleLabel => 'No role';
+
+  @override
+  String get addMemberButton => 'Add member';
+
+  @override
+  String get walletAddressFieldLabel => 'Their account address';
+
+  @override
+  String get roleFieldLabel => 'Role';
+
+  @override
+  String get rolesSectionTitle => 'Roles';
+
+  @override
+  String get newRoleButton => 'New role';
+
+  @override
+  String get roleNameFieldLabel => 'Role name';
+
+  @override
+  String get statusRoleGranted => 'Role granted';
+
+  @override
+  String get statusRoleRevoked => 'Role removed';
 }

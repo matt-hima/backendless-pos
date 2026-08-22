@@ -123,6 +123,9 @@ class _LilyGoAppState extends State<LilyGoApp> {
   List<Map<String, dynamic>> machinesList = [];
   List<Map<String, dynamic>> bookingsList = [];
   List<Map<String, dynamic>> clientBookings = [];
+  Set<String> myPermissions = {};
+  List<Map<String, dynamic>> iamUsersList = [];
+  List<Map<String, dynamic>> iamRolesList = [];
 
   AppLocalizations get _l => AppLocalizations.of(navigatorKey.currentContext!);
 
@@ -216,6 +219,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
       await _refreshMenuContent();
       await _refreshLoyalty();
       await _refreshBookings();
+      await _refreshIam();
       if (mounted) setState(() => status = _l.statusReadyMessage);
     } catch (error) {
       if (mounted) setState(() => status = _l.statusStartupError(error.toString()));
@@ -427,6 +431,9 @@ class _LilyGoAppState extends State<LilyGoApp> {
     if (isPortal) {
       final resolvedStoreName = storeName.isEmpty ? l.storeNameDefault : storeName;
       await db.registerMerchant(resolvedStoreName);
+      await db.grantRole(address, 'owner');
+      await _refreshMyPermissions();
+      await _refreshIam();
       await _refresh();
       await _autoProvisionChannel(resolvedStoreName);
     }
@@ -446,9 +453,17 @@ class _LilyGoAppState extends State<LilyGoApp> {
     await _loadWalletProfile(address);
     if (Uri.base.path == '/portal') {
       await _start();
+      await _refreshMyPermissions();
       await _logChannelEvent(_l.accountConnectedLog(_shortWallet(address)));
       await _refreshCustomerService();
     }
+  }
+
+  Future<void> _refreshMyPermissions() async {
+    final permissions = walletAddress == 'demo-mode'
+        ? DatabaseService.permissionCatalog.toSet()
+        : await db.permissionsForWallet(walletAddress!);
+    if (mounted) setState(() => myPermissions = permissions);
   }
 
   Future<void> _loadWalletProfile(String address) async {
@@ -1114,6 +1129,129 @@ class _LilyGoAppState extends State<LilyGoApp> {
         'end': booking['scheduled_end']?.toString(),
       });
     }
+  }
+
+  Future<void> _refreshIam() async {
+    final users = await db.iamUsers();
+    final roles = await db.roles();
+    if (mounted)
+      setState(() {
+        iamUsersList = users;
+        iamRolesList = roles;
+      });
+  }
+
+  Future<void> _addIamMember() async {
+    final l = _l;
+    final walletController = TextEditingController();
+    var selectedRole = iamRolesList.isNotEmpty ? iamRolesList.first['id'].toString() : null;
+    final proceed = await showDialog<bool>(
+      context: navigatorKey.currentContext!,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(l.addMemberButton),
+          content: SizedBox(
+            width: 380,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(
+                  controller: walletController,
+                  decoration: InputDecoration(
+                      labelText: l.walletAddressFieldLabel, border: const OutlineInputBorder())),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: selectedRole,
+                decoration: InputDecoration(
+                    labelText: l.roleFieldLabel, border: const OutlineInputBorder()),
+                items: iamRolesList
+                    .map((r) => DropdownMenuItem(
+                        value: r['id'].toString(), child: Text(r['name'].toString())))
+                    .toList(),
+                onChanged: (value) => setDialogState(() => selectedRole = value),
+              ),
+            ]),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: Text(l.cancelButton)),
+            FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: Text(l.addMemberButton)),
+          ],
+        ),
+      ),
+    );
+    final wallet = walletController.text.trim();
+    walletController.dispose();
+    if (proceed != true || wallet.isEmpty || selectedRole == null) return;
+    await db.grantRole(wallet, selectedRole!);
+    await _refreshIam();
+    if (mounted) setState(() => status = l.statusRoleGranted);
+  }
+
+  Future<void> _changeRole(String wallet, String? currentRoleId, String newRoleId) async {
+    if (currentRoleId != null) await db.revokeRole(wallet, currentRoleId);
+    await db.grantRole(wallet, newRoleId);
+    await _refreshIam();
+    if (mounted) setState(() => status = _l.statusRoleGranted);
+  }
+
+  Future<void> _removeMember(String wallet, String? roleId) async {
+    if (roleId != null) await db.revokeRole(wallet, roleId);
+    await _refreshIam();
+    if (mounted) setState(() => status = _l.statusRoleRevoked);
+  }
+
+  Future<void> _createOrEditRole([Map<String, dynamic>? role]) async {
+    final l = _l;
+    final nameController = TextEditingController(text: role?['name']?.toString());
+    final existingPermissions = Set<String>.from((role?['permissions'] as List?) ?? const []);
+    final selected = {for (final p in DatabaseService.permissionCatalog) p: existingPermissions.contains(p)};
+    final proceed = await showDialog<bool>(
+      context: navigatorKey.currentContext!,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(l.newRoleButton),
+          content: SizedBox(
+            width: 380,
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                TextField(
+                    controller: nameController,
+                    enabled: role == null,
+                    decoration: InputDecoration(
+                        labelText: l.roleNameFieldLabel, border: const OutlineInputBorder())),
+                const SizedBox(height: 12),
+                ...DatabaseService.permissionCatalog.map((permission) => CheckboxListTile(
+                    value: selected[permission],
+                    onChanged: (value) => setDialogState(() => selected[permission] = value ?? false),
+                    title: Text(permission),
+                    controlAffinity: ListTileControlAffinity.leading)),
+              ]),
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: Text(l.cancelButton)),
+            FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: Text(l.saveButton)),
+          ],
+        ),
+      ),
+    );
+    final name = nameController.text.trim();
+    nameController.dispose();
+    if (proceed != true) return;
+    final permissions = selected.entries.where((e) => e.value).map((e) => e.key).toList();
+    if (role == null) {
+      if (name.isEmpty) return;
+      await db.createRole(name, permissions);
+    } else {
+      await db.updateRolePermissions(role['id'].toString(), permissions);
+    }
+    await _refreshIam();
   }
 
   Future<void> _refreshLoyalty() async {
@@ -1787,6 +1925,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
   Future<void> _enterDemoMode() async {
     if (mounted) setState(() => walletAddress = 'demo-mode');
     await _start();
+    await _refreshMyPermissions();
     await _loadDintaifungMenu();
     await _loadDemoMenuContent();
     await _seedMachines();
@@ -1799,21 +1938,25 @@ class _LilyGoAppState extends State<LilyGoApp> {
   Widget _portal() {
     if (walletAddress == null) return _portalLanding();
     final l = _l;
+    final allSections = [
+      (Icons.dashboard_outlined, l.navOverview, 'overview.view', _overview()),
+      (Icons.business_outlined, l.navThirdParties, 'customers.manage', _customers()),
+      (Icons.inventory_2_outlined, l.navProducts, 'products.manage', _products()),
+      (Icons.receipt_long_outlined, l.navOrders, 'orders.manage', _orders()),
+      (Icons.cell_tower, l.navConnection, 'connection.manage', const _WebRtcPanel()),
+      (Icons.support_agent_outlined, l.navSupport, 'support.manage', _customerService()),
+      (Icons.restaurant_menu_outlined, l.navContent, 'content.manage', _menuContent()),
+      (Icons.loyalty_outlined, l.navLoyalty, 'loyalty.manage', _loyalty()),
+      (Icons.event_seat_outlined, l.navBookings, 'bookings.manage', _bookings()),
+      (Icons.admin_panel_settings_outlined, l.navAccessControl, 'settings.manage', _accessControl()),
+    ];
+    final sections = allSections.where((s) => myPermissions.contains(s.$3)).toList();
+    final connectionIndex = sections.indexWhere((s) => s.$3 == 'connection.manage');
     return DefaultTabController(
-      length: 9,
+      length: sections.length,
       child: Builder(builder: (tabContext) {
         final controller = DefaultTabController.of(tabContext);
-        final destinations = [
-          (Icons.dashboard_outlined, l.navOverview),
-          (Icons.business_outlined, l.navThirdParties),
-          (Icons.inventory_2_outlined, l.navProducts),
-          (Icons.receipt_long_outlined, l.navOrders),
-          (Icons.cell_tower, l.navConnection),
-          (Icons.support_agent_outlined, l.navSupport),
-          (Icons.restaurant_menu_outlined, l.navContent),
-          (Icons.loyalty_outlined, l.navLoyalty),
-          (Icons.event_seat_outlined, l.navBookings),
-        ];
+        final destinations = sections.map((s) => (s.$1, s.$2)).toList();
         return Scaffold(
           appBar: AppBar(title: Text(l.appTitle), actions: [
             if (walletAddress == 'demo-mode') ...[
@@ -1823,27 +1966,32 @@ class _LilyGoAppState extends State<LilyGoApp> {
               TextButton(onPressed: _exitDemoMode, child: Text(l.exitDemoButton)),
             ] else
               Chip(label: Text(_shortWallet(walletAddress!))),
-            _connectionChip(onTap: () {
-              setState(() => portalSection = 4);
-              controller.animateTo(4);
-            }),
+            _connectionChip(
+                onTap: connectionIndex < 0
+                    ? null
+                    : () {
+                        setState(() => portalSection = connectionIndex);
+                        controller.animateTo(connectionIndex);
+                      }),
             _languageSwitcher(),
             IconButton(
                 onPressed: _editPreferences,
                 icon: const Icon(Icons.contact_page_outlined),
                 tooltip: l.preferencesTooltip),
-            IconButton(
-                onPressed: _exportBackup,
-                icon: const Icon(Icons.download_outlined),
-                tooltip: l.backupTooltip),
-            IconButton(
-                onPressed: _importBackup,
-                icon: const Icon(Icons.upload_outlined),
-                tooltip: l.restoreTooltip),
-            IconButton(
-                onPressed: _resetAllData,
-                icon: const Icon(Icons.delete_sweep_outlined),
-                tooltip: l.resetDataButton),
+            if (myPermissions.contains('settings.manage')) ...[
+              IconButton(
+                  onPressed: _exportBackup,
+                  icon: const Icon(Icons.download_outlined),
+                  tooltip: l.backupTooltip),
+              IconButton(
+                  onPressed: _importBackup,
+                  icon: const Icon(Icons.upload_outlined),
+                  tooltip: l.restoreTooltip),
+              IconButton(
+                  onPressed: _resetAllData,
+                  icon: const Icon(Icons.delete_sweep_outlined),
+                  tooltip: l.resetDataButton),
+            ],
             IconButton(
                 onPressed: _refresh,
                 icon: const Icon(Icons.refresh),
@@ -1892,17 +2040,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
             ),
             const VerticalDivider(width: 1),
             Expanded(
-                child: TabBarView(children: [
-              _overview(),
-              _customers(),
-              _products(),
-              _orders(),
-              const _WebRtcPanel(),
-              _customerService(),
-              _menuContent(),
-              _loyalty(),
-              _bookings()
-            ])),
+                child: TabBarView(children: sections.map((s) => s.$4).toList())),
           ]),
         );
       }),
@@ -2329,6 +2467,68 @@ class _LilyGoAppState extends State<LilyGoApp> {
         'canceled' => l.bookingStatusCanceled,
         _ => l.bookingStatusPlanned,
       };
+
+  Widget _accessControl() {
+    final l = _l;
+    return _Page(children: [
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        _SectionTitle(l.membersSectionTitle, l.membersSectionSubtitle),
+        FilledButton.icon(
+            onPressed: _addIamMember,
+            icon: const Icon(Icons.person_add_alt_outlined),
+            label: Text(l.addMemberButton)),
+      ]),
+      const SizedBox(height: 8),
+      if (iamUsersList.isEmpty)
+        Card(child: Padding(padding: const EdgeInsets.all(24), child: Text(l.membersEmpty)))
+      else
+        ...iamUsersList.map((user) => Card(
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ListTile(
+              title: Text(_shortWallet(user['wallet'].toString())),
+              subtitle: Text(user['role_name']?.toString() ?? l.noRoleLabel),
+              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                DropdownButton<String>(
+                  value: user['role_id']?.toString(),
+                  hint: Text(l.roleFieldLabel),
+                  items: iamRolesList
+                      .map((r) => DropdownMenuItem(
+                          value: r['id'].toString(), child: Text(r['name'].toString())))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      _changeRole(user['wallet'].toString(), user['role_id']?.toString(), value);
+                    }
+                  },
+                ),
+                IconButton(
+                    onPressed: () =>
+                        _removeMember(user['wallet'].toString(), user['role_id']?.toString()),
+                    icon: const Icon(Icons.delete_outline)),
+              ]),
+            ))),
+      const SizedBox(height: 28),
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Text(l.rolesSectionTitle, style: Theme.of(navigatorKey.currentContext!).textTheme.headlineSmall),
+        OutlinedButton.icon(
+            onPressed: () => _createOrEditRole(),
+            icon: const Icon(Icons.add),
+            label: Text(l.newRoleButton)),
+      ]),
+      const SizedBox(height: 8),
+      ...iamRolesList.map((role) => Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            title: Text(role['name'].toString()),
+            subtitle: Text((role['permissions'] as List).join(', ')),
+            trailing: (role['is_builtin'] == true)
+                ? null
+                : IconButton(
+                    onPressed: () => _createOrEditRole(role),
+                    icon: const Icon(Icons.edit_outlined)),
+          ))),
+    ]);
+  }
 
   String _number(dynamic value) =>
       value is num ? value.toStringAsFixed(2) : '$value';

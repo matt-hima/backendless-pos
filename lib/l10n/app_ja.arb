@@ -290,5 +290,19 @@
   "clientBookingTimeLabel": "時間",
   "clientBookingPartySizeLabel": "人数",
   "clientBookingSubmitButton": "予約をリクエスト",
-  "statusBookingRequested": "予約リクエストを送信しました"
+  "statusBookingRequested": "予約リクエストを送信しました",
+
+  "navAccessControl": "アクセス管理",
+  "membersSectionTitle": "メンバー",
+  "membersSectionSubtitle": "この店舗のポータルにアクセスできる人と、その権限範囲",
+  "membersEmpty": "メンバーはまだ追加されていません。アクセスできるのはあなただけです。",
+  "noRoleLabel": "ロールなし",
+  "addMemberButton": "メンバーを追加",
+  "walletAddressFieldLabel": "相手のアカウントアドレス",
+  "roleFieldLabel": "ロール",
+  "rolesSectionTitle": "ロール",
+  "newRoleButton": "新しいロール",
+  "roleNameFieldLabel": "ロール名",
+  "statusRoleGranted": "ロールを付与しました",
+  "statusRoleRevoked": "ロールを削除しました"
 }

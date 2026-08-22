@@ -290,5 +290,19 @@
   "clientBookingTimeLabel": "Hora",
   "clientBookingPartySizeLabel": "Número de personas",
   "clientBookingSubmitButton": "Solicitar reserva",
-  "statusBookingRequested": "Solicitud de reserva enviada"
+  "statusBookingRequested": "Solicitud de reserva enviada",
+
+  "navAccessControl": "Control de acceso",
+  "membersSectionTitle": "Miembros",
+  "membersSectionSubtitle": "Quién puede acceder al portal de esta tienda y qué puede hacer cada uno",
+  "membersEmpty": "Aún no se han añadido miembros. Solo usted tiene acceso.",
+  "noRoleLabel": "Sin rol",
+  "addMemberButton": "Añadir miembro",
+  "walletAddressFieldLabel": "Dirección de cuenta de la persona",
+  "roleFieldLabel": "Rol",
+  "rolesSectionTitle": "Roles",
+  "newRoleButton": "Nuevo rol",
+  "roleNameFieldLabel": "Nombre del rol",
+  "statusRoleGranted": "Rol otorgado",
+  "statusRoleRevoked": "Rol eliminado"
 }

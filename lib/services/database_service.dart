@@ -102,6 +102,25 @@ class DatabaseService {
         status VARCHAR NOT NULL DEFAULT 'planned',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      CREATE SCHEMA IF NOT EXISTS iam;
+      CREATE TABLE IF NOT EXISTS iam.realm (
+        id VARCHAR PRIMARY KEY, name VARCHAR NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS iam.users (
+        id VARCHAR PRIMARY KEY, display_name VARCHAR, enabled BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS iam.roles (
+        id VARCHAR PRIMARY KEY, name VARCHAR NOT NULL, description VARCHAR,
+        is_builtin BOOLEAN DEFAULT false
+      );
+      CREATE TABLE IF NOT EXISTS iam.role_permissions (
+        rowid BIGINT PRIMARY KEY, role_id VARCHAR NOT NULL, permission VARCHAR NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS iam.user_role_mapping (
+        rowid BIGINT PRIMARY KEY, user_id VARCHAR NOT NULL, role_id VARCHAR NOT NULL,
+        granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
     ''');
     await execute('ALTER TABLE erp.llx_commande ADD COLUMN IF NOT EXISTS fk_statut INTEGER DEFAULT 0;');
     await execute('ALTER TABLE erp.llx_socpeople ADD COLUMN IF NOT EXISTS phone_mobile VARCHAR;');
@@ -115,6 +134,42 @@ class DatabaseService {
         tax: product['tva_tx'] as double,
         stock: product['stock'] as double,
       );
+    }
+    await _seedBuiltinRoles();
+  }
+
+  static const permissionCatalog = [
+    'overview.view', 'customers.manage', 'products.manage', 'orders.manage',
+    'content.manage', 'loyalty.manage', 'bookings.manage', 'support.manage',
+    'connection.manage', 'settings.manage',
+  ];
+
+  static const _builtinRoles = {
+    'owner': permissionCatalog,
+    'manager': [
+      'overview.view', 'customers.manage', 'products.manage', 'orders.manage',
+      'content.manage', 'loyalty.manage', 'bookings.manage', 'support.manage',
+      'connection.manage',
+    ],
+    'staff': ['overview.view', 'orders.manage', 'bookings.manage', 'support.manage'],
+  };
+
+  Future<void> _seedBuiltinRoles() async {
+    final existing = await rows("SELECT id FROM iam.roles WHERE is_builtin = true");
+    final existingIds = existing.map((r) => r['id'].toString()).toSet();
+    for (final entry in _builtinRoles.entries) {
+      if (existingIds.contains(entry.key)) continue;
+      final displayName = '${entry.key[0].toUpperCase()}${entry.key.substring(1)}';
+      await execute('''
+        INSERT INTO iam.roles (id, name, description, is_builtin)
+        VALUES (${_q(entry.key)}, ${_q(displayName)}, ${_q('Built-in role')}, true);
+      ''');
+      for (final permission in entry.value) {
+        await execute('''
+          INSERT INTO iam.role_permissions (rowid, role_id, permission)
+          VALUES (${_nextId()}, ${_q(entry.key)}, ${_q(permission)});
+        ''');
+      }
     }
   }
 
@@ -419,12 +474,81 @@ class DatabaseService {
   Future<List<Map<String, dynamic>>> bookings() =>
       rows('SELECT * FROM mes.production_orders ORDER BY scheduled_start DESC');
 
+  Future<void> ensureIamUser(String wallet) async {
+    final existing = await rows('SELECT id FROM iam.users WHERE id = ${_q(wallet)}');
+    if (existing.isNotEmpty) return;
+    await execute('INSERT INTO iam.users (id) VALUES (${_q(wallet)});');
+  }
+
+  Future<void> grantRole(String wallet, String roleId) async {
+    await ensureIamUser(wallet);
+    final existing = await rows(
+        'SELECT rowid FROM iam.user_role_mapping WHERE user_id = ${_q(wallet)} AND role_id = ${_q(roleId)}');
+    if (existing.isNotEmpty) return;
+    await execute('''
+      INSERT INTO iam.user_role_mapping (rowid, user_id, role_id) VALUES (${_nextId()}, ${_q(wallet)}, ${_q(roleId)});
+    ''');
+  }
+
+  Future<void> revokeRole(String wallet, String roleId) async {
+    await execute(
+        'DELETE FROM iam.user_role_mapping WHERE user_id = ${_q(wallet)} AND role_id = ${_q(roleId)};');
+  }
+
+  Future<List<Map<String, dynamic>>> iamUsers() async {
+    return rows('''
+      SELECT u.id AS wallet, u.display_name, u.enabled, r.id AS role_id, r.name AS role_name
+      FROM iam.users u
+      LEFT JOIN iam.user_role_mapping m ON m.user_id = u.id
+      LEFT JOIN iam.roles r ON r.id = m.role_id
+      ORDER BY u.created_at
+    ''');
+  }
+
+  Future<List<Map<String, dynamic>>> roles() async {
+    final roleRows = await rows('SELECT * FROM iam.roles ORDER BY is_builtin DESC, name');
+    final result = <Map<String, dynamic>>[];
+    for (final role in roleRows) {
+      final permissions = await rows(
+          'SELECT permission FROM iam.role_permissions WHERE role_id = ${_q(role['id'].toString())}');
+      result.add({...role, 'permissions': permissions.map((p) => p['permission'].toString()).toList()});
+    }
+    return result;
+  }
+
+  Future<String> createRole(String name, List<String> permissions) async {
+    final id = _newId();
+    await execute("INSERT INTO iam.roles (id, name, is_builtin) VALUES (${_q(id)}, ${_q(name)}, false);");
+    await updateRolePermissions(id, permissions);
+    return id;
+  }
+
+  Future<void> updateRolePermissions(String roleId, List<String> permissions) async {
+    await execute('DELETE FROM iam.role_permissions WHERE role_id = ${_q(roleId)};');
+    for (final permission in permissions) {
+      await execute('''
+        INSERT INTO iam.role_permissions (rowid, role_id, permission) VALUES (${_nextId()}, ${_q(roleId)}, ${_q(permission)});
+      ''');
+    }
+  }
+
+  Future<Set<String>> permissionsForWallet(String wallet) async {
+    final permissionRows = await rows('''
+      SELECT DISTINCT rp.permission
+      FROM iam.user_role_mapping m
+      JOIN iam.role_permissions rp ON rp.role_id = m.role_id
+      WHERE m.user_id = ${_q(wallet)}
+    ''');
+    return permissionRows.map((r) => r['permission'].toString()).toSet();
+  }
+
   static const _dumpTables = [
     'erp.llx_societe', 'erp.llx_socpeople', 'erp.llx_commande', 'erp.llx_product', 'erp.llx_commandedet',
     'erp.llx_product_lang', 'chat.rc_rooms', 'chat.rc_subscriptions', 'chat.rc_messages',
     'cms.collections', 'cms.fields', 'cms.items',
     'loyalty.accounts', 'loyalty.points_transactions',
-    'mes.machines', 'mes.production_orders'
+    'mes.machines', 'mes.production_orders',
+    'iam.users', 'iam.roles', 'iam.role_permissions', 'iam.user_role_mapping'
   ];
 
   Future<Map<String, dynamic>> dumpAll() async {

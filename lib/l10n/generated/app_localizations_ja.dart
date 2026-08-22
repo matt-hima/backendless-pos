@@ -877,4 +877,43 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get statusBookingRequested => '予約リクエストを送信しました';
+
+  @override
+  String get navAccessControl => 'アクセス管理';
+
+  @override
+  String get membersSectionTitle => 'メンバー';
+
+  @override
+  String get membersSectionSubtitle => 'この店舗のポータルにアクセスできる人と、その権限範囲';
+
+  @override
+  String get membersEmpty => 'メンバーはまだ追加されていません。アクセスできるのはあなただけです。';
+
+  @override
+  String get noRoleLabel => 'ロールなし';
+
+  @override
+  String get addMemberButton => 'メンバーを追加';
+
+  @override
+  String get walletAddressFieldLabel => '相手のアカウントアドレス';
+
+  @override
+  String get roleFieldLabel => 'ロール';
+
+  @override
+  String get rolesSectionTitle => 'ロール';
+
+  @override
+  String get newRoleButton => '新しいロール';
+
+  @override
+  String get roleNameFieldLabel => 'ロール名';
+
+  @override
+  String get statusRoleGranted => 'ロールを付与しました';
+
+  @override
+  String get statusRoleRevoked => 'ロールを削除しました';
 }

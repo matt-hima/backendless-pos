@@ -1652,6 +1652,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Booking request sent'**
   String get statusBookingRequested;
+
+  /// No description provided for @navAccessControl.
+  ///
+  /// In en, this message translates to:
+  /// **'Access control'**
+  String get navAccessControl;
+
+  /// No description provided for @membersSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Members'**
+  String get membersSectionTitle;
+
+  /// No description provided for @membersSectionSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Who can access this store\'s portal, and what they can do'**
+  String get membersSectionSubtitle;
+
+  /// No description provided for @membersEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No members added yet. You\'re the only one with access.'**
+  String get membersEmpty;
+
+  /// No description provided for @noRoleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'No role'**
+  String get noRoleLabel;
+
+  /// No description provided for @addMemberButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Add member'**
+  String get addMemberButton;
+
+  /// No description provided for @walletAddressFieldLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Their account address'**
+  String get walletAddressFieldLabel;
+
+  /// No description provided for @roleFieldLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Role'**
+  String get roleFieldLabel;
+
+  /// No description provided for @rolesSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Roles'**
+  String get rolesSectionTitle;
+
+  /// No description provided for @newRoleButton.
+  ///
+  /// In en, this message translates to:
+  /// **'New role'**
+  String get newRoleButton;
+
+  /// No description provided for @roleNameFieldLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Role name'**
+  String get roleNameFieldLabel;
+
+  /// No description provided for @statusRoleGranted.
+  ///
+  /// In en, this message translates to:
+  /// **'Role granted'**
+  String get statusRoleGranted;
+
+  /// No description provided for @statusRoleRevoked.
+  ///
+  /// In en, this message translates to:
+  /// **'Role removed'**
+  String get statusRoleRevoked;
 }
 
 class _AppLocalizationsDelegate

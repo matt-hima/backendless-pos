@@ -866,6 +866,45 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get statusBookingRequested => '已送出預約請求';
+
+  @override
+  String get navAccessControl => '存取權限';
+
+  @override
+  String get membersSectionTitle => '成員';
+
+  @override
+  String get membersSectionSubtitle => '誰能存取此門市的後台，以及各自的權限範圍';
+
+  @override
+  String get membersEmpty => '尚未新增任何成員，目前只有您能存取。';
+
+  @override
+  String get noRoleLabel => '無角色';
+
+  @override
+  String get addMemberButton => '新增成員';
+
+  @override
+  String get walletAddressFieldLabel => '對方的帳戶地址';
+
+  @override
+  String get roleFieldLabel => '角色';
+
+  @override
+  String get rolesSectionTitle => '角色';
+
+  @override
+  String get newRoleButton => '新增角色';
+
+  @override
+  String get roleNameFieldLabel => '角色名稱';
+
+  @override
+  String get statusRoleGranted => '已授予角色';
+
+  @override
+  String get statusRoleRevoked => '已移除角色';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -1730,4 +1769,43 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get statusBookingRequested => '已送出預約請求';
+
+  @override
+  String get navAccessControl => '存取權限';
+
+  @override
+  String get membersSectionTitle => '成員';
+
+  @override
+  String get membersSectionSubtitle => '誰能存取此門市的後台，以及各自的權限範圍';
+
+  @override
+  String get membersEmpty => '尚未新增任何成員，目前只有您能存取。';
+
+  @override
+  String get noRoleLabel => '無角色';
+
+  @override
+  String get addMemberButton => '新增成員';
+
+  @override
+  String get walletAddressFieldLabel => '對方的帳戶地址';
+
+  @override
+  String get roleFieldLabel => '角色';
+
+  @override
+  String get rolesSectionTitle => '角色';
+
+  @override
+  String get newRoleButton => '新增角色';
+
+  @override
+  String get roleNameFieldLabel => '角色名稱';
+
+  @override
+  String get statusRoleGranted => '已授予角色';
+
+  @override
+  String get statusRoleRevoked => '已移除角色';
 }

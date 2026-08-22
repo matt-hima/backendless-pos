@@ -897,4 +897,45 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get statusBookingRequested => 'Pedido de reserva enviado';
+
+  @override
+  String get navAccessControl => 'Controlo de acesso';
+
+  @override
+  String get membersSectionTitle => 'Membros';
+
+  @override
+  String get membersSectionSubtitle =>
+      'Quem pode aceder ao portal desta loja, e o que cada um pode fazer';
+
+  @override
+  String get membersEmpty =>
+      'Ainda não foram adicionados membros. Só você tem acesso.';
+
+  @override
+  String get noRoleLabel => 'Sem função';
+
+  @override
+  String get addMemberButton => 'Adicionar membro';
+
+  @override
+  String get walletAddressFieldLabel => 'Endereço da conta da pessoa';
+
+  @override
+  String get roleFieldLabel => 'Função';
+
+  @override
+  String get rolesSectionTitle => 'Funções';
+
+  @override
+  String get newRoleButton => 'Nova função';
+
+  @override
+  String get roleNameFieldLabel => 'Nome da função';
+
+  @override
+  String get statusRoleGranted => 'Função atribuída';
+
+  @override
+  String get statusRoleRevoked => 'Função removida';
 }
