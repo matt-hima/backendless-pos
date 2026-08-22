@@ -2,7 +2,7 @@
 // customer-facing menu; DuckDB remains the relational portal/export database.
 (() => {
   const DB_NAME = 'dolibarr_client_db';
-  const DB_VERSION = 3;
+  const DB_VERSION = 4;
   let database;
 
   function open() {
@@ -17,6 +17,7 @@
         if (!db.objectStoreNames.contains('llx_commande')) db.createObjectStore('llx_commande', {keyPath: 'rowid'});
         const lines = db.objectStoreNames.contains('llx_commandedet') ? request.transaction.objectStore('llx_commandedet') : db.createObjectStore('llx_commandedet', {keyPath: 'rowid'});
         if (!lines.indexNames.contains('fk_commande')) lines.createIndex('fk_commande', 'fk_commande');
+        if (!db.objectStoreNames.contains('llx_societe')) db.createObjectStore('llx_societe', {keyPath: 'rowid'});
         if (!db.objectStoreNames.contains('llx_channel')) db.createObjectStore('llx_channel', {keyPath: 'code'});
       };
       request.onsuccess = () => { database = request.result; resolve(database); };
@@ -54,6 +55,13 @@
       await open();
       const rows = await requestValue(transaction(['llx_product']).objectStore('llx_product').getAll());
       return JSON.stringify(rows);
+    },
+    async saveWalletThirdParty(thirdpartyJson) {
+      await open();
+      const thirdparty = JSON.parse(thirdpartyJson);
+      const tx = transaction(['llx_societe'], 'readwrite');
+      tx.objectStore('llx_societe').put(thirdparty);
+      await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
     },
     async saveEncryptedTransaction(transactionJson) {
       await open();

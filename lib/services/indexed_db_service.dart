@@ -26,6 +26,11 @@ class IndexedDbService {
         .toList();
   }
 
+  Future<void> saveWalletThirdParty(Map<String, dynamic> thirdparty) async {
+    await _promise(js_util
+        .callMethod(_bridge, 'saveWalletThirdParty', [jsonEncode(thirdparty)]));
+  }
+
   Future<void> saveEncryptedTransaction(
       {required int id,
       required String channel,

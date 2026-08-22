@@ -33,7 +33,8 @@ class _LilyGoAppState extends State<LilyGoApp> {
   List<Map<String, dynamic>> clientProducts = [];
   final Map<int, int> cart = {};
   bool databaseStarted = false;
-  bool clientReady = false;
+  // Render the offline menu shell immediately; IndexedDB can hydrate it afterward.
+  bool clientReady = true;
   String activeChannel = Uri.base.queryParameters['channel'] ?? 'default';
   String? walletAddress;
   int clientTransactionCount = 0;
@@ -196,6 +197,8 @@ class _LilyGoAppState extends State<LilyGoApp> {
         return;
       }
       await walletCrypto.initialize(address);
+      final thirdparty = _walletThirdParty(address);
+      await indexedDb.saveWalletThirdParty(thirdparty);
       if (mounted)
         setState(() {
           walletAddress = address;
@@ -209,6 +212,19 @@ class _LilyGoAppState extends State<LilyGoApp> {
       if (mounted)
         setState(() => status = 'Wallet login canceled or failed: $error');
     }
+  }
+
+  Map<String, dynamic> _walletThirdParty(String address) {
+    final normalized = address.toLowerCase();
+    final id = int.parse(normalized.substring(2, 10), radix: 16);
+    return {
+      'rowid': id,
+      'wallet': normalized,
+      'nom': 'Wallet ${_shortWallet(address)}',
+      'code_client': 'WALLET-${normalized.substring(2, 8).toUpperCase()}',
+      'email': 'wallet@local.invalid',
+      'updated_at': DateTime.now().toIso8601String(),
+    };
   }
 
   Future<void> _loadClientStats() async {
@@ -310,6 +326,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
     final payload = {
       'channel': activeChannel,
       'wallet': walletAddress,
+      'thirdparty': _walletThirdParty(walletAddress!),
       'total_ttc': total * 1.05,
       'lines': lines,
       'created_at': DateTime.now().toIso8601String()
@@ -434,7 +451,13 @@ class _LilyGoAppState extends State<LilyGoApp> {
                               walletAddress == null ? '連接錢包後送出訂單' : '此錢包的頻道交易'),
                           subtitle: Text(walletAddress == null
                               ? '只有錢包持有人可以建立與讀取自己的交易統計。'
-                              : '已加密 $clientTransactionCount 筆 · 合計 NT\$${_number(clientTransactionTotal)}'))),
+                              : '已加密 $clientTransactionCount 筆 · 合計 NT\$${_number(clientTransactionTotal)}'),
+                          trailing: walletAddress == null
+                              ? FilledButton.icon(
+                                  onPressed: _connectWallet,
+                                  icon: const Icon(Icons.login),
+                                  label: const Text('Wallet login'))
+                              : const Icon(Icons.verified_user))),
                   const SizedBox(height: 12),
                   ...categories.entries
                       .map((entry) => _clientCategory(entry.key, entry.value))
@@ -491,7 +514,9 @@ class _LilyGoAppState extends State<LilyGoApp> {
                           color: Theme.of(context).colorScheme.onPrimary,
                           fontWeight: FontWeight.bold))),
               FilledButton(
-                  onPressed: count == 0 ? null : _submitClientOrder,
+                  onPressed: count == 0 || walletAddress == null
+                      ? null
+                      : _submitClientOrder,
                   child: const Text('確認點餐'))
             ])));
   }

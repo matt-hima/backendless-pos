@@ -99,7 +99,7 @@ firebase deploy --only hosting:remote-order --project glassnframeshop-69ed3
 
 Live site: [remote-order.web.app](https://remote-order.web.app/) · Portal: [remote-order.web.app/portal](https://remote-order.web.app/portal)
 
-The root client uses `web/indexeddb_bridge.js` and stores client-side Dolibarr-shaped records in IndexedDB: `llx_product`, `llx_commande`, and `llx_commandedet`. Products are seeded or updated through the JavaScript bridge, item cards open detail dialogs, and **確認點餐** writes a new offline transaction with its lines. The portal continues to use DuckDB-Wasm for relational processing and Parquet export.
+The root client uses `web/indexeddb_bridge.js` and stores client-side Dolibarr-shaped records in IndexedDB: `llx_product`, `llx_societe`, `llx_commande`, and `llx_commandedet`. Customer ordering requires wallet login. The connected wallet is upserted as the local `llx_societe` third party, and its address, code, and wallet identity are included in the encrypted transaction payload. Transaction statistics filter by both channel and the connected wallet, so a client only processes its own orders. The portal continues to use DuckDB-Wasm for relational processing and Parquet export.
 
 ## Channel links and FQDN deployment
 
@@ -117,6 +117,6 @@ The hosted FQDN can save orders to browser IndexedDB, but it cannot directly wri
 
 The portal WebRTC tab uses `stun:stun.l.google.com:19302` and provides editable offer/answer JSON fields. The portal clicks **Generate portal offer**, the remote client accepts that offer and returns an answer, and the portal applies the answer. This is manual signaling for development; Google STUN discovers routes but does not relay storage uploads or replace a signaling/relay service.
 
-## Portal wallet login
+## Wallet-owned client transactions
 
-DuckDB-Wasm is initialized only after entering `/portal` and connecting an injected EIP-1193 wallet through `flutter_web3`. The connected wallet address is displayed as the portal identity and is stored as the `wallet` key on client-side transactions. The root ordering page does not initialize DuckDB; it uses IndexedDB only.
+Both the customer page and `/portal` use an injected EIP-1193 wallet through `flutter_web3`. The customer must connect before submitting an order. A wallet-specific challenge is signed once per browser session; its signature derives the AES-GCM key in `web/wallet_crypto_bridge.js`. The private key never enters the app and the derived encryption key is not persisted. IndexedDB stores only the encrypted order envelope plus the public channel/wallet filter fields. DuckDB-Wasm is initialized only for `/portal`; the root ordering page uses IndexedDB only.
