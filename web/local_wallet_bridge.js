@@ -20,8 +20,16 @@
       const encrypted = await wallet.encrypt(password);
       localStorage.setItem(storageKey, encrypted);
       await window.WalletCryptoBridge.initLocalWallet(wallet.address, wallet.privateKey);
-      return wallet.address;
+      return JSON.stringify({address: wallet.address, mnemonic: wallet.mnemonic?.phrase});
     },
     async unlock(password) { return openKeystore(password); },
+    async restore(mnemonic, password) {
+      if (!mnemonic || !password || password.length < 8) throw new Error('Recovery phrase and an 8+ character passphrase are required');
+      const wallet = window.ethers.Wallet.fromPhrase(mnemonic.trim());
+      const encrypted = await wallet.encrypt(password);
+      localStorage.setItem(storageKey, encrypted);
+      await window.WalletCryptoBridge.initLocalWallet(wallet.address, wallet.privateKey);
+      return wallet.address;
+    },
   };
 })();

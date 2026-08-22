@@ -208,6 +208,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
       final action = await _walletChoice();
       if (action == 'create') await _createLocalWallet();
       if (action == 'unlock') await _unlockLocalWallet();
+      if (action == 'restore') await _restoreLocalWallet();
     } catch (error) {
       if (mounted)
         setState(() => status = 'Wallet login canceled or failed: $error');
@@ -242,6 +243,9 @@ class _LilyGoAppState extends State<LilyGoApp> {
             FilledButton(
                 onPressed: () => Navigator.pop(dialogContext, 'create'),
                 child: const Text('Create wallet')),
+            TextButton(
+                onPressed: () => Navigator.pop(dialogContext, 'restore'),
+                child: const Text('Restore with recovery phrase')),
           ],
         ),
       );
@@ -256,7 +260,10 @@ class _LilyGoAppState extends State<LilyGoApp> {
       if (mounted) setState(() => status = 'Passphrases did not match');
       return;
     }
-    final address = await localWallet.create(passphrase);
+    final created = await localWallet.create(passphrase);
+    final address = created['address']!.toString();
+    final mnemonic = created['mnemonic']?.toString();
+    if (mnemonic == null || !await _showRecoveryPhrase(mnemonic)) return;
     await _finishWalletLogin(address, local: true);
   }
 
@@ -272,6 +279,81 @@ class _LilyGoAppState extends State<LilyGoApp> {
     final address = await localWallet.unlock(passphrase);
     if (address == null) throw Exception('No local wallet found');
     await _finishWalletLogin(address, local: true);
+  }
+
+  Future<void> _restoreLocalWallet() async {
+    final mnemonic = await _recoveryPhraseDialog();
+    if (mnemonic == null) return;
+    final passphrase = await _passphraseDialog(
+        'Set wallet password', 'Create a passphrase (8+ characters).');
+    if (passphrase == null) return;
+    final address = await localWallet.restore(mnemonic, passphrase);
+    await _finishWalletLogin(address, local: true);
+  }
+
+  Future<bool> _showRecoveryPhrase(String phrase) async {
+    var confirmed = false;
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => StatefulBuilder(
+            builder: (context, setDialogState) => AlertDialog(
+              title: const Text('Save your recovery phrase'),
+              content: SizedBox(
+                width: 460,
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Text(
+                      'Write these 12 words down and keep them offline. Anyone with them can control this wallet.'),
+                  const SizedBox(height: 16),
+                  SelectableText(phrase,
+                      style: Theme.of(context).textTheme.titleMedium),
+                  CheckboxListTile(
+                    value: confirmed,
+                    onChanged: (value) =>
+                        setDialogState(() => confirmed = value ?? false),
+                    title: const Text('I wrote down my recovery phrase'),
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
+                ]),
+              ),
+              actions: [
+                FilledButton(
+                    onPressed: confirmed
+                        ? () => Navigator.pop(dialogContext, true)
+                        : null,
+                    child: const Text('Continue')),
+              ],
+            ),
+          ),
+        ) ??
+        false;
+  }
+
+  Future<String?> _recoveryPhraseDialog() async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Restore wallet'),
+        content: TextField(
+            controller: controller,
+            maxLines: 3,
+            autofocus: true,
+            decoration: const InputDecoration(
+                labelText: '12-word recovery phrase',
+                border: OutlineInputBorder())),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, controller.text),
+              child: const Text('Restore'))
+        ],
+      ),
+    );
+    controller.dispose();
+    return result;
   }
 
   Future<String?> _passphraseDialog(String title, String hint) async {
