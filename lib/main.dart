@@ -53,6 +53,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
     final fallback = dintaifungMenu
         .map((product) => {
               ...product,
+              'rowid': product['id'],
               'category': _fallbackCategory(product['ref'] as String),
               'description': '${product['label']}｜鼎泰豐經典手作料理',
               'active': true

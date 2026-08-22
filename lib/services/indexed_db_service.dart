@@ -10,6 +10,7 @@ class IndexedDbService {
     final products = dintaifungMenu
         .map((product) => {
               ...product,
+              'rowid': product['id'],
               'category': _category(product['ref'] as String),
               'description': _description(product['label'] as String),
               'active': true,
