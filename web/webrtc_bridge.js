@@ -4,6 +4,10 @@
   let peer;
   let channel;
   let messageHandler;
+  let lastSeenMs = 0;
+  const HEARTBEAT_MS = 5000;
+  const STALE_AFTER_MS = 12000;
+  const incoming = [];
 
   const config = {iceServers: [{urls: 'stun:stun.l.google.com:19302'}]};
 
@@ -21,25 +25,44 @@
     });
   }
 
+  function onChannelMessage(raw) {
+    lastSeenMs = Date.now();
+    let envelope;
+    try { envelope = JSON.parse(raw); } catch (_) { envelope = null; }
+    if (envelope && envelope.type === 'ping') {
+      if (channel?.readyState === 'open') channel.send(JSON.stringify({type: 'pong', ts: Date.now()}));
+      return;
+    }
+    if (envelope && envelope.type === 'pong') return;
+    incoming.push(raw);
+    messageHandler?.(raw);
+  }
+
+  function wireChannel(nextChannel) {
+    channel = nextChannel;
+    channel.onmessage = (message) => onChannelMessage(message.data);
+    channel.onopen = () => { lastSeenMs = Date.now(); };
+  }
+
   function wirePeer(nextPeer) {
     peer = nextPeer;
     peer.onconnectionstatechange = () => window.dispatchEvent(new CustomEvent('webrtc-state', {detail: peer.connectionState}));
-    peer.ondatachannel = (event) => {
-      channel = event.channel;
-      channel.onmessage = (message) => messageHandler?.(message.data);
-    };
+    peer.ondatachannel = (event) => wireChannel(event.channel);
   }
 
   function info(description, role) {
     return JSON.stringify({role, stun: 'stun:stun.l.google.com:19302', type: description.type, sdp: description.sdp});
   }
 
+  setInterval(() => {
+    if (channel?.readyState === 'open') channel.send(JSON.stringify({type: 'ping', ts: Date.now()}));
+  }, HEARTBEAT_MS);
+
   window.WebRtcBridge = {
     async createOffer() {
       const nextPeer = new RTCPeerConnection(config);
       wirePeer(nextPeer);
-      channel = nextPeer.createDataChannel('order-sync');
-      channel.onmessage = (message) => messageHandler?.(message.data);
+      wireChannel(nextPeer.createDataChannel('order-sync'));
       await nextPeer.setLocalDescription(await nextPeer.createOffer());
       await waitForIceGathering();
       return info(nextPeer.localDescription, 'offer');
@@ -62,7 +85,14 @@
       channel.send(message);
     },
     onMessage(callback) { messageHandler = callback; },
+    drainMessages() {
+      const drained = incoming.splice(0, incoming.length);
+      return JSON.stringify(drained);
+    },
     state() { return peer?.connectionState ?? 'new'; },
+    status() {
+      if (channel?.readyState !== 'open') return peer ? 'connecting' : 'disconnected';
+      return (Date.now() - lastSeenMs) <= STALE_AFTER_MS ? 'connected' : 'stale';
+    },
   };
 })();
-

@@ -1,0 +1,396 @@
+{
+  "@@locale": "en",
+
+  "appTitle": "Store Manager",
+  "portalLoginTitle": "Store Login",
+
+  "cancelButton": "Cancel",
+  "saveButton": "Save",
+  "continueButton": "Continue",
+  "closeButton": "Close",
+  "createButton": "Create",
+  "editButton": "Edit",
+
+  "accountEntryTitle": "Sign in",
+  "accountEntryBody": "Enter your mobile number and birthday. We'll sign you in if this device already has an account, or set one up if it doesn't.",
+  "accountChoiceTitle": "Advanced options",
+  "accountChoiceBody": "Use these if you set a custom passphrase, or need to restore this account on a new device.",
+  "accountUnlockButton": "Unlock with passphrase",
+  "accountHighSecurityButton": "High security setup",
+  "accountRestoreButton": "Restore with backup phrase",
+  "accountAdvancedOptionsLink": "Advanced options",
+  "accountMismatchError": "That mobile number and birthday don't match this device's account. Use Advanced options to sign in a different way.",
+  "accountSignInButton": "Sign in",
+  "accountSignInTooltip": "Sign in",
+
+  "createPassphraseTitle": "Create account",
+  "createPassphraseHint": "Create a passphrase (8+ characters). It cannot be recovered.",
+  "confirmPassphraseTitle": "Confirm passphrase",
+  "confirmPassphraseHint": "Enter the same passphrase again.",
+  "passphraseMismatchMessage": "Passphrases did not match",
+
+  "unlockTitle": "Sign in",
+  "unlockHint": "Enter your passphrase.",
+  "noAccountFoundMessage": "No account found on this device. Create one first.",
+
+  "restoreTitle": "Restore account",
+  "restorePhraseFieldLabel": "12-word backup phrase",
+  "setPassphraseTitle": "Set a passphrase",
+  "setPassphraseHint": "Create a passphrase (8+ characters).",
+  "restoreButton": "Restore",
+
+  "backupPhraseTitle": "Save your backup phrase",
+  "backupPhraseBody": "Write these 12 words down and keep them offline. Anyone with them can access this account.",
+  "backupPhraseConfirmCheckbox": "I wrote down my backup phrase",
+
+  "quickSetupWarning": "This protects your account for daily use on this device. For stronger protection, use Advanced options.",
+  "quickSetupMobileLabel": "Mobile number",
+  "quickSetupBirthdayLabel": "Birthday (YYYY-MM-DD)",
+  "storeNameFieldLabel": "Store name",
+  "storeNameDefault": "My store",
+
+  "preferencesButton": "Preferences",
+  "preferencesTooltip": "Preferences",
+  "preferencesTitle": "Preferences",
+  "preferencesBody": "Optional. Your mobile number and birthday are encrypted before being remembered on this device.",
+  "preferencesMobileLabel": "Mobile number",
+  "preferencesBirthdayLabel": "Birthday (YYYY-MM-DD)",
+  "preferencesLanguageLabel": "Language",
+  "preferencesRememberCheckbox": "Remember these details",
+  "preferencesSecurityNote": "Higher security: keep your backup phrase offline and use it to restore this account if this device's storage is lost.",
+
+  "accountGateHeadline": "Sign in to open the store manager",
+  "accountGateBody": "Your account is the store manager key. Local accounts are stored as encrypted keystores protected by your passphrase.",
+
+  "chatTooltip": "Chat with support",
+  "portalTooltip": "Store manager",
+  "chatWithSupportTitle": "Chat with support",
+  "messageSupportHint": "Message support",
+
+  "clientMenuTitle": "À la carte menu",
+  "clientMenuSubtitle": "Channel: {channel} · Tap a dish to see details and add it to your order",
+  "@clientMenuSubtitle": {
+    "placeholders": { "channel": {"type": "String"} }
+  },
+  "menuFallbackCategory": "Menu",
+  "clientOrderLockedTitle": "Sign in to place your order",
+  "clientOrderUnlockedTitle": "Your channel orders",
+  "clientOrderLockedSubtitle": "Only account holders can create and view their own order history.",
+  "clientOrderUnlockedSubtitle": "{count, plural, one{1 encrypted order} other{{count} encrypted orders}} · Total NT${total}",
+  "@clientOrderUnlockedSubtitle": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "total": {"type": "String"}
+    }
+  },
+  "clientOrderTotalLabel": "Total NT${total} ({count, plural, one{1 item} other{{count} items}})",
+  "@clientOrderTotalLabel": {
+    "placeholders": {
+      "total": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "clientOrderConfirmButton": "Confirm order",
+
+  "salesWorkspaceTitle": "Sales workspace",
+  "salesWorkspaceSubtitle": "Menu",
+  "offlineTerminalFooter": "Offline terminal",
+
+  "navOverview": "Overview",
+  "navThirdParties": "Customers",
+  "navProducts": "Products",
+  "navOrders": "Orders",
+  "navConnection": "Connection",
+  "navSupport": "Support",
+
+  "createChannelButton": "Create store link",
+  "channelNameFieldLabel": "Store link name",
+  "channelReadyTitle": "Store link {code} ready",
+  "@channelReadyTitle": {
+    "placeholders": { "code": {"type": "String"} }
+  },
+  "printButton": "Print",
+
+  "metricOrders": "Orders",
+  "metricThirdParties": "Customers",
+  "metricProducts": "Products",
+  "storageCardTitle": "Local storage",
+  "storageCardSubtitle": "Store link {channel} keeps orders on this device. Keep this window open here — it's what keeps your checkout link and chat live for customers.",
+  "@storageCardSubtitle": {
+    "placeholders": {
+      "channel": {"type": "String"}
+    }
+  },
+
+  "customersSectionTitle": "Customers",
+  "customersSectionSubtitle": "Customer directory",
+  "colName": "Name",
+  "colCustomerCode": "Customer code",
+  "colEmail": "Email",
+  "customersEmpty": "No customers yet.",
+
+  "productsSectionTitle": "Products",
+  "productsSectionSubtitle": "Product catalog",
+  "loadSampleMenuButton": "Load sample menu",
+  "newProductButton": "New product",
+  "colReference": "Reference",
+  "colLabel": "Label",
+  "colPriceHt": "Price (excl. tax)",
+  "colVat": "VAT",
+  "colStock": "Stock",
+  "translationsAction": "Translations",
+  "productsEmpty": "No products yet. Add one or load the sample menu.",
+
+  "newProductTitle": "New product",
+  "editProductTitle": "Edit product",
+  "fieldReference": "Reference",
+  "fieldLabel": "Label",
+  "fieldPriceHt": "Price (excl. tax)",
+  "fieldVat": "VAT %",
+  "fieldStock": "Stock",
+
+  "translationsDialogTitle": "Translations",
+  "translationsLanguageLabel": "Language",
+  "translationsLabelField": "Label",
+  "translationsDescriptionField": "Description",
+
+  "ordersSectionTitle": "Orders",
+  "ordersSectionSubtitle": "Order history",
+  "orderTransactionCount": "{count, plural, one{1 transaction} other{{count} transactions}}",
+  "@orderTransactionCount": {
+    "placeholders": { "count": {"type": "int"} }
+  },
+  "ordersEmptyMock": "New orders arrive automatically every 10 seconds.",
+  "operateTransactionTooltip": "Manage order",
+  "validateOrderMenuItem": "Mark as validated",
+  "acceptOrderMenuItem": "Mark as accepted",
+  "processOrderMenuItem": "Mark as processing",
+  "deliverOrderMenuItem": "Mark as delivered",
+  "cancelOrderMenuItem": "Cancel order",
+  "totalHtLabel": "Subtotal NT${total}",
+  "@totalHtLabel": {
+    "placeholders": { "total": {"type": "String"} }
+  },
+  "totalTtcLabel": "Total NT${total}",
+  "@totalTtcLabel": {
+    "placeholders": { "total": {"type": "String"} }
+  },
+
+  "orderStatusDraft": "Draft",
+  "orderStatusValidated": "Validated",
+  "orderStatusAccepted": "Accepted",
+  "orderStatusProcessing": "Processing",
+  "orderStatusDelivered": "Delivered",
+  "orderStatusCanceled": "Canceled",
+  "orderStatusUnknown": "Unknown",
+
+  "supportSectionTitle": "Support",
+  "supportSectionSubtitle": "Channel {channel}",
+  "@supportSectionSubtitle": {
+    "placeholders": { "channel": {"type": "String"} }
+  },
+  "joinAsAgentButton": "Join as agent",
+  "conversationsTab": "Conversations",
+  "activityLogTab": "Activity log",
+  "noActivityYet": "No activity yet.",
+  "noConversationsYet": "No conversations yet.",
+  "noMessagesYet": "No messages",
+  "selectConversationPrompt": "Select a conversation",
+  "replyHint": "Reply to customer",
+  "roleOwnerLabel": "Owner",
+  "roleAgentLabel": "Agent",
+  "roleMemberLabel": "Member",
+
+  "connectionConnected": "Connected",
+  "connectionReconnectNeeded": "Reconnect needed",
+  "connectionConnecting": "Connecting…",
+  "connectionNotConnected": "Not connected",
+
+  "connectionSectionTitle": "Connection",
+  "connectionSectionSubtitle": "Manual pairing for live chat delivery",
+  "portalKeepOpenHint": "Keep this window open on this device — it's what keeps your store's checkout link and chat live for customers.",
+  "connectionDefaultMessage": "Using a public relay to discover routes",
+  "generateOfferButton": "Generate pairing code",
+  "acceptOfferButton": "Enter pairing code",
+  "applyAnswerButton": "Apply response",
+  "offerFieldLabel": "Pairing code",
+  "answerFieldLabel": "Response code",
+  "connectionOfferGeneratedMessage": "Pairing code generated. Share it with the other device, then enter its response.",
+  "connectionAnswerGeneratedMessage": "Response generated. Send it back to the device that created the pairing code.",
+  "connectionAnswerAppliedMessage": "Connection established.",
+  "connectionOfferErrorMessage": "Pairing error: {error}",
+  "@connectionOfferErrorMessage": {
+    "placeholders": { "error": {"type": "String"} }
+  },
+  "connectionAcceptErrorMessage": "Response error: {error}",
+  "@connectionAcceptErrorMessage": {
+    "placeholders": { "error": {"type": "String"} }
+  },
+  "connectionApplyErrorMessage": "Connection error: {error}",
+  "@connectionApplyErrorMessage": {
+    "placeholders": { "error": {"type": "String"} }
+  },
+  "connectionFooterNote": "This helps discover a direct connection between devices. It does not provide message delivery on its own.",
+
+  "statusStartingDb": "Starting local database…",
+  "statusClientStorageError": "Local storage error: {error}",
+  "@statusClientStorageError": {
+    "placeholders": { "error": {"type": "String"} }
+  },
+  "statusReadyMessage": "Ready — browse and manage store data",
+  "statusStartupError": "Startup error: {error}",
+  "@statusStartupError": {
+    "placeholders": { "error": {"type": "String"} }
+  },
+  "statusOrderSynced": "Synced {ref} with {lineCount} lines ({bytes} bytes)",
+  "@statusOrderSynced": {
+    "placeholders": {
+      "ref": {"type": "String"},
+      "lineCount": {"type": "int"},
+      "bytes": {"type": "int"}
+    }
+  },
+  "statusSyncError": "Sync error: {error}",
+  "@statusSyncError": {
+    "placeholders": { "error": {"type": "String"} }
+  },
+  "statusOrderStatusChanged": "Order status changed to {statusLabel}",
+  "@statusOrderStatusChanged": {
+    "placeholders": { "statusLabel": {"type": "String"} }
+  },
+  "statusProductSaved": "Product {ref} saved locally",
+  "@statusProductSaved": {
+    "placeholders": { "ref": {"type": "String"} }
+  },
+  "statusMenuLoaded": "Loaded {count} sample menu products locally",
+  "@statusMenuLoaded": {
+    "placeholders": { "count": {"type": "int"} }
+  },
+  "statusAccountCanceled": "Sign-in canceled or failed: {error}",
+  "@statusAccountCanceled": {
+    "placeholders": { "error": {"type": "String"} }
+  },
+  "statusAccountConnected": "Account connected and encryption initialized: {address}",
+  "@statusAccountConnected": {
+    "placeholders": { "address": {"type": "String"} }
+  },
+  "statusProfileDecryptError": "Remembered profile could not be decrypted",
+  "statusProfileSaved": "Contact information encrypted and remembered for {address}",
+  "@statusProfileSaved": {
+    "placeholders": { "address": {"type": "String"} }
+  },
+  "statusProfileRemoved": "Remembered contact information removed",
+  "statusTransactionReadFailed": "Encrypted transaction read failed: {error}",
+  "@statusTransactionReadFailed": {
+    "placeholders": { "error": {"type": "String"} }
+  },
+  "statusOrderSaved": "Order {ref} encrypted for this account and saved offline",
+  "@statusOrderSaved": {
+    "placeholders": { "ref": {"type": "String"} }
+  },
+  "orderSavedSnackbar": "Order saved offline",
+  "statusBackupDownloaded": "Backup downloaded",
+  "statusBackupRestored": "Backup restored",
+  "statusRestoreFailed": "Restore failed: {error}",
+  "@statusRestoreFailed": {
+    "placeholders": { "error": {"type": "String"} }
+  },
+
+  "backupTooltip": "Back up data",
+  "restoreTooltip": "Restore data",
+  "refreshTooltip": "Refresh data",
+  "restoreConfirmTitle": "Restore from backup?",
+  "restoreConfirmBody": "This replaces all current store and client data with the contents of the chosen backup file. This cannot be undone.",
+
+  "orderStatusChangedLog": "Order #{orderId} → {statusLabel}",
+  "@orderStatusChangedLog": {
+    "placeholders": {
+      "orderId": {"type": "int"},
+      "statusLabel": {"type": "String"}
+    }
+  },
+  "productSavedLog": "Product {ref} saved (NT${price})",
+  "@productSavedLog": {
+    "placeholders": {
+      "ref": {"type": "String"},
+      "price": {"type": "String"}
+    }
+  },
+  "channelCreatedLog": "Channel {code} created: \"{name}\"",
+  "@channelCreatedLog": {
+    "placeholders": {
+      "code": {"type": "String"},
+      "name": {"type": "String"}
+    }
+  },
+  "accountConnectedLog": "Account {address} connected",
+  "@accountConnectedLog": {
+    "placeholders": { "address": {"type": "String"} }
+  },
+  "agentJoinedLog": "Agent {address} joined channel {channel}",
+  "@agentJoinedLog": {
+    "placeholders": {
+      "address": {"type": "String"},
+      "channel": {"type": "String"}
+    }
+  },
+
+  "navContent": "Menu content",
+  "contentSectionTitle": "Menu content",
+  "contentSectionSubtitle": "Customer-facing storefront content",
+  "newContentItemButton": "New item",
+  "publishButton": "Publish to clients",
+  "demoModeButton": "Demo mode",
+  "contentEmpty": "No content items yet.",
+  "colCategory": "Category",
+  "newContentItemTitle": "New item",
+  "editContentItemTitle": "Edit item",
+  "fieldCategory": "Category",
+  "fieldDescription": "Description",
+  "statusContentPublished": "Menu content published to connected clients",
+
+  "resetDataButton": "Reset data",
+  "resetConfirmTitle": "Reset all data?",
+  "resetConfirmBody": "This permanently deletes all store, chat, menu content, and loyalty data on this device. Your signed-in account is not affected. This cannot be undone.",
+  "statusDataReset": "All data has been reset",
+
+  "navLoyalty": "Loyalty",
+  "loyaltySectionTitle": "Loyalty",
+  "loyaltySectionSubtitle": "Customer points and tiers",
+  "colWallet": "Account",
+  "colPointsBalance": "Points",
+  "colTier": "Tier",
+  "adjustPointsButton": "Adjust points",
+  "adjustPointsTitle": "Adjust points",
+  "pointsFieldLabel": "Points (negative to redeem)",
+  "reasonFieldLabel": "Reason",
+  "loyaltyEmpty": "No loyalty accounts yet.",
+  "statusPointsAdjusted": "Points adjusted",
+
+  "navBookings": "Bookings",
+  "bookingsSectionTitle": "Bookings",
+  "bookingsSectionSubtitle": "Table bookings and status",
+  "seedMachinesButton": "Load sample tables",
+  "machinesEmpty": "No tables yet. Load the sample tables to get started.",
+  "machineStateIdle": "Idle",
+  "machineStateOccupied": "Occupied",
+  "machineStateMaintenance": "Maintenance",
+  "setIdleButton": "Set idle",
+  "setMaintenanceButton": "Set maintenance",
+  "bookingsEmpty": "No bookings yet.",
+  "bookingStatusPlanned": "Planned",
+  "bookingStatusReleased": "Released",
+  "bookingStatusInProgress": "In progress",
+  "bookingStatusCompleted": "Completed",
+  "bookingStatusCanceled": "Canceled",
+  "releaseBookingMenuItem": "Release",
+  "startBookingMenuItem": "Start",
+  "completeBookingMenuItem": "Complete",
+  "cancelBookingMenuItem": "Cancel",
+  "clientBookingCardTitle": "Book a table",
+  "clientBookingMachineLabel": "Table",
+  "clientBookingTimeLabel": "Time",
+  "clientBookingPartySizeLabel": "Party size",
+  "clientBookingSubmitButton": "Request booking",
+  "statusBookingRequested": "Booking request sent"
+}

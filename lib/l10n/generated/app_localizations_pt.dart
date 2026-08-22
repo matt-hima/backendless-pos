@@ -1,0 +1,863 @@
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for Portuguese (`pt`).
+class AppLocalizationsPt extends AppLocalizations {
+  AppLocalizationsPt([String locale = 'pt']) : super(locale);
+
+  @override
+  String get appTitle => 'Gestor de Loja';
+
+  @override
+  String get portalLoginTitle => 'Acesso da Loja';
+
+  @override
+  String get cancelButton => 'Cancelar';
+
+  @override
+  String get saveButton => 'Guardar';
+
+  @override
+  String get continueButton => 'Continuar';
+
+  @override
+  String get closeButton => 'Fechar';
+
+  @override
+  String get createButton => 'Criar';
+
+  @override
+  String get editButton => 'Editar';
+
+  @override
+  String get accountEntryTitle => 'Iniciar sessão';
+
+  @override
+  String get accountEntryBody =>
+      'Introduza o seu número de telemóvel e data de nascimento. Iniciamos a sua sessão se este dispositivo já tiver uma conta, ou criamos uma nova se não tiver.';
+
+  @override
+  String get accountChoiceTitle => 'Opções avançadas';
+
+  @override
+  String get accountChoiceBody =>
+      'Use estas opções se definiu uma palavra-passe personalizada, ou se precisar de restaurar esta conta noutro dispositivo.';
+
+  @override
+  String get accountUnlockButton => 'Iniciar sessão com palavra-passe';
+
+  @override
+  String get accountHighSecurityButton => 'Configuração de alta segurança';
+
+  @override
+  String get accountRestoreButton => 'Restaurar com frase de segurança';
+
+  @override
+  String get accountAdvancedOptionsLink => 'Opções avançadas';
+
+  @override
+  String get accountMismatchError =>
+      'Esse número de telemóvel e data de nascimento não correspondem à conta deste dispositivo. Use Opções avançadas para iniciar sessão de outra forma.';
+
+  @override
+  String get accountSignInButton => 'Iniciar sessão';
+
+  @override
+  String get accountSignInTooltip => 'Iniciar sessão';
+
+  @override
+  String get createPassphraseTitle => 'Criar conta';
+
+  @override
+  String get createPassphraseHint =>
+      'Crie uma palavra-passe (8+ caracteres). Não pode ser recuperada.';
+
+  @override
+  String get confirmPassphraseTitle => 'Confirmar palavra-passe';
+
+  @override
+  String get confirmPassphraseHint =>
+      'Introduza a mesma palavra-passe novamente.';
+
+  @override
+  String get passphraseMismatchMessage => 'As palavras-passe não coincidem';
+
+  @override
+  String get unlockTitle => 'Iniciar sessão';
+
+  @override
+  String get unlockHint => 'Introduza a sua palavra-passe.';
+
+  @override
+  String get noAccountFoundMessage =>
+      'Nenhuma conta encontrada neste dispositivo. Crie uma primeiro.';
+
+  @override
+  String get restoreTitle => 'Restaurar conta';
+
+  @override
+  String get restorePhraseFieldLabel => 'Frase de segurança de 12 palavras';
+
+  @override
+  String get setPassphraseTitle => 'Definir uma palavra-passe';
+
+  @override
+  String get setPassphraseHint => 'Crie uma palavra-passe (8+ caracteres).';
+
+  @override
+  String get restoreButton => 'Restaurar';
+
+  @override
+  String get backupPhraseTitle => 'Guarde a sua frase de segurança';
+
+  @override
+  String get backupPhraseBody =>
+      'Anote estas 12 palavras e guarde-as offline. Qualquer pessoa que as tenha pode aceder a esta conta.';
+
+  @override
+  String get backupPhraseConfirmCheckbox => 'Anotei a minha frase de segurança';
+
+  @override
+  String get quickSetupWarning =>
+      'Isto protege a sua conta para uso diário neste dispositivo. Para maior proteção, use Opções avançadas.';
+
+  @override
+  String get quickSetupMobileLabel => 'Número de telemóvel';
+
+  @override
+  String get quickSetupBirthdayLabel => 'Data de nascimento (AAAA-MM-DD)';
+
+  @override
+  String get storeNameFieldLabel => 'Nome da loja';
+
+  @override
+  String get storeNameDefault => 'A minha loja';
+
+  @override
+  String get preferencesButton => 'Preferências';
+
+  @override
+  String get preferencesTooltip => 'Preferências';
+
+  @override
+  String get preferencesTitle => 'Preferências';
+
+  @override
+  String get preferencesBody =>
+      'Opcional. O seu número de telemóvel e data de nascimento são encriptados antes de serem memorizados neste dispositivo.';
+
+  @override
+  String get preferencesMobileLabel => 'Número de telemóvel';
+
+  @override
+  String get preferencesBirthdayLabel => 'Data de nascimento (AAAA-MM-DD)';
+
+  @override
+  String get preferencesLanguageLabel => 'Idioma';
+
+  @override
+  String get preferencesRememberCheckbox => 'Memorizar estes dados';
+
+  @override
+  String get preferencesSecurityNote =>
+      'Maior segurança: mantenha a sua frase de segurança offline e use-a para restaurar esta conta caso o armazenamento deste dispositivo se perca.';
+
+  @override
+  String get accountGateHeadline => 'Inicie sessão para abrir o gestor de loja';
+
+  @override
+  String get accountGateBody =>
+      'A sua conta é a chave do gestor de loja. As contas locais são guardadas como cofres de chaves encriptados, protegidos pela sua palavra-passe.';
+
+  @override
+  String get chatTooltip => 'Conversar com o suporte';
+
+  @override
+  String get portalTooltip => 'Gestor de loja';
+
+  @override
+  String get chatWithSupportTitle => 'Conversa com o suporte';
+
+  @override
+  String get messageSupportHint => 'Mensagem para o suporte';
+
+  @override
+  String get clientMenuTitle => 'Menu à la carte';
+
+  @override
+  String clientMenuSubtitle(String channel) {
+    return 'Canal: $channel · Toque num prato para ver os detalhes e adicioná-lo ao seu pedido';
+  }
+
+  @override
+  String get menuFallbackCategory => 'Menu';
+
+  @override
+  String get clientOrderLockedTitle => 'Inicie sessão para fazer o seu pedido';
+
+  @override
+  String get clientOrderUnlockedTitle => 'Os seus pedidos deste canal';
+
+  @override
+  String get clientOrderLockedSubtitle =>
+      'Apenas os titulares de conta podem criar e ver o seu próprio histórico de pedidos.';
+
+  @override
+  String clientOrderUnlockedSubtitle(int count, String total) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pedidos encriptados',
+      one: '1 pedido encriptado',
+    );
+    return '$_temp0 · Total NT\$$total';
+  }
+
+  @override
+  String clientOrderTotalLabel(String total, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count itens',
+      one: '1 item',
+    );
+    return 'Total NT\$$total ($_temp0)';
+  }
+
+  @override
+  String get clientOrderConfirmButton => 'Confirmar pedido';
+
+  @override
+  String get salesWorkspaceTitle => 'Espaço de vendas';
+
+  @override
+  String get salesWorkspaceSubtitle => 'Menu';
+
+  @override
+  String get offlineTerminalFooter => 'Terminal offline';
+
+  @override
+  String get navOverview => 'Resumo';
+
+  @override
+  String get navThirdParties => 'Clientes';
+
+  @override
+  String get navProducts => 'Produtos';
+
+  @override
+  String get navOrders => 'Pedidos';
+
+  @override
+  String get navConnection => 'Ligação';
+
+  @override
+  String get navSupport => 'Suporte';
+
+  @override
+  String get createChannelButton => 'Criar link da loja';
+
+  @override
+  String get channelNameFieldLabel => 'Nome do link da loja';
+
+  @override
+  String channelReadyTitle(String code) {
+    return 'Link da loja $code pronto';
+  }
+
+  @override
+  String get printButton => 'Imprimir';
+
+  @override
+  String get metricOrders => 'Pedidos';
+
+  @override
+  String get metricThirdParties => 'Clientes';
+
+  @override
+  String get metricProducts => 'Produtos';
+
+  @override
+  String get storageCardTitle => 'Armazenamento local';
+
+  @override
+  String storageCardSubtitle(String channel) {
+    return 'O link da loja $channel guarda os pedidos neste dispositivo. Mantenha esta janela aberta aqui — é isso que mantém o seu link de pagamento e o chat ativos para os clientes.';
+  }
+
+  @override
+  String get customersSectionTitle => 'Clientes';
+
+  @override
+  String get customersSectionSubtitle => 'Diretório de clientes';
+
+  @override
+  String get colName => 'Nome';
+
+  @override
+  String get colCustomerCode => 'Código de cliente';
+
+  @override
+  String get colEmail => 'E-mail';
+
+  @override
+  String get customersEmpty => 'Ainda não há clientes.';
+
+  @override
+  String get productsSectionTitle => 'Produtos';
+
+  @override
+  String get productsSectionSubtitle => 'Catálogo de produtos';
+
+  @override
+  String get loadSampleMenuButton => 'Carregar menu de exemplo';
+
+  @override
+  String get newProductButton => 'Novo produto';
+
+  @override
+  String get colReference => 'Referência';
+
+  @override
+  String get colLabel => 'Nome';
+
+  @override
+  String get colPriceHt => 'Preço (sem impostos)';
+
+  @override
+  String get colVat => 'IVA';
+
+  @override
+  String get colStock => 'Stock';
+
+  @override
+  String get translationsAction => 'Traduções';
+
+  @override
+  String get productsEmpty =>
+      'Ainda não há produtos. Adicione um ou carregue o menu de exemplo.';
+
+  @override
+  String get newProductTitle => 'Novo produto';
+
+  @override
+  String get editProductTitle => 'Editar produto';
+
+  @override
+  String get fieldReference => 'Referência';
+
+  @override
+  String get fieldLabel => 'Nome';
+
+  @override
+  String get fieldPriceHt => 'Preço (sem impostos)';
+
+  @override
+  String get fieldVat => 'IVA %';
+
+  @override
+  String get fieldStock => 'Stock';
+
+  @override
+  String get translationsDialogTitle => 'Traduções';
+
+  @override
+  String get translationsLanguageLabel => 'Idioma';
+
+  @override
+  String get translationsLabelField => 'Nome';
+
+  @override
+  String get translationsDescriptionField => 'Descrição';
+
+  @override
+  String get ordersSectionTitle => 'Pedidos';
+
+  @override
+  String get ordersSectionSubtitle => 'Histórico de pedidos';
+
+  @override
+  String orderTransactionCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count transações',
+      one: '1 transação',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get ordersEmptyMock =>
+      'Novos pedidos chegam automaticamente a cada 10 segundos.';
+
+  @override
+  String get operateTransactionTooltip => 'Gerir pedido';
+
+  @override
+  String get validateOrderMenuItem => 'Marcar como validado';
+
+  @override
+  String get acceptOrderMenuItem => 'Marcar como aceite';
+
+  @override
+  String get processOrderMenuItem => 'Marcar como em processamento';
+
+  @override
+  String get deliverOrderMenuItem => 'Marcar como entregue';
+
+  @override
+  String get cancelOrderMenuItem => 'Cancelar pedido';
+
+  @override
+  String totalHtLabel(String total) {
+    return 'Subtotal NT\$$total';
+  }
+
+  @override
+  String totalTtcLabel(String total) {
+    return 'Total NT\$$total';
+  }
+
+  @override
+  String get orderStatusDraft => 'Rascunho';
+
+  @override
+  String get orderStatusValidated => 'Validado';
+
+  @override
+  String get orderStatusAccepted => 'Aceite';
+
+  @override
+  String get orderStatusProcessing => 'Em processamento';
+
+  @override
+  String get orderStatusDelivered => 'Entregue';
+
+  @override
+  String get orderStatusCanceled => 'Cancelado';
+
+  @override
+  String get orderStatusUnknown => 'Desconhecido';
+
+  @override
+  String get supportSectionTitle => 'Suporte';
+
+  @override
+  String supportSectionSubtitle(String channel) {
+    return 'Canal $channel';
+  }
+
+  @override
+  String get joinAsAgentButton => 'Juntar-se como agente';
+
+  @override
+  String get conversationsTab => 'Conversas';
+
+  @override
+  String get activityLogTab => 'Registo de atividade';
+
+  @override
+  String get noActivityYet => 'Ainda não há atividade.';
+
+  @override
+  String get noConversationsYet => 'Ainda não há conversas.';
+
+  @override
+  String get noMessagesYet => 'Sem mensagens';
+
+  @override
+  String get selectConversationPrompt => 'Selecione uma conversa';
+
+  @override
+  String get replyHint => 'Responder ao cliente';
+
+  @override
+  String get roleOwnerLabel => 'Proprietário';
+
+  @override
+  String get roleAgentLabel => 'Agente';
+
+  @override
+  String get roleMemberLabel => 'Membro';
+
+  @override
+  String get connectionConnected => 'Ligado';
+
+  @override
+  String get connectionReconnectNeeded => 'É necessário religar';
+
+  @override
+  String get connectionConnecting => 'A ligar…';
+
+  @override
+  String get connectionNotConnected => 'Sem ligação';
+
+  @override
+  String get connectionSectionTitle => 'Ligação';
+
+  @override
+  String get connectionSectionSubtitle =>
+      'Emparelhamento manual para entrega do chat em direto';
+
+  @override
+  String get portalKeepOpenHint =>
+      'Mantenha esta janela aberta neste dispositivo — é isso que mantém o link de pagamento e o chat da sua loja ativos para os clientes.';
+
+  @override
+  String get connectionDefaultMessage =>
+      'A usar um repetidor público para descobrir rotas';
+
+  @override
+  String get generateOfferButton => 'Gerar código de emparelhamento';
+
+  @override
+  String get acceptOfferButton => 'Introduzir código de emparelhamento';
+
+  @override
+  String get applyAnswerButton => 'Aplicar resposta';
+
+  @override
+  String get offerFieldLabel => 'Código de emparelhamento';
+
+  @override
+  String get answerFieldLabel => 'Código de resposta';
+
+  @override
+  String get connectionOfferGeneratedMessage =>
+      'Código de emparelhamento gerado. Partilhe-o com o outro dispositivo e depois introduza a resposta dele.';
+
+  @override
+  String get connectionAnswerGeneratedMessage =>
+      'Resposta gerada. Envie-a de volta ao dispositivo que criou o código de emparelhamento.';
+
+  @override
+  String get connectionAnswerAppliedMessage => 'Ligação estabelecida.';
+
+  @override
+  String connectionOfferErrorMessage(String error) {
+    return 'Erro de emparelhamento: $error';
+  }
+
+  @override
+  String connectionAcceptErrorMessage(String error) {
+    return 'Erro de resposta: $error';
+  }
+
+  @override
+  String connectionApplyErrorMessage(String error) {
+    return 'Erro de ligação: $error';
+  }
+
+  @override
+  String get connectionFooterNote =>
+      'Isto ajuda a descobrir uma ligação direta entre dispositivos. Não fornece, por si só, a entrega de mensagens.';
+
+  @override
+  String get statusStartingDb => 'A iniciar a base de dados local…';
+
+  @override
+  String statusClientStorageError(String error) {
+    return 'Erro de armazenamento local: $error';
+  }
+
+  @override
+  String get statusReadyMessage =>
+      'Pronto — explore e faça a gestão dos dados da loja';
+
+  @override
+  String statusStartupError(String error) {
+    return 'Erro de arranque: $error';
+  }
+
+  @override
+  String statusOrderSynced(String ref, int lineCount, int bytes) {
+    return '$ref sincronizado com $lineCount linhas ($bytes bytes)';
+  }
+
+  @override
+  String statusSyncError(String error) {
+    return 'Erro de sincronização: $error';
+  }
+
+  @override
+  String statusOrderStatusChanged(String statusLabel) {
+    return 'O estado do pedido foi alterado para $statusLabel';
+  }
+
+  @override
+  String statusProductSaved(String ref) {
+    return 'Produto $ref guardado localmente';
+  }
+
+  @override
+  String statusMenuLoaded(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count produtos do menu de exemplo carregados localmente',
+      one: '1 produto do menu de exemplo carregado localmente',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String statusAccountCanceled(String error) {
+    return 'Início de sessão cancelado ou falhado: $error';
+  }
+
+  @override
+  String statusAccountConnected(String address) {
+    return 'Conta ligada e encriptação inicializada: $address';
+  }
+
+  @override
+  String get statusProfileDecryptError =>
+      'Não foi possível desencriptar o perfil memorizado';
+
+  @override
+  String statusProfileSaved(String address) {
+    return 'Informação de contacto encriptada e memorizada para $address';
+  }
+
+  @override
+  String get statusProfileRemoved =>
+      'Informação de contacto memorizada removida';
+
+  @override
+  String statusTransactionReadFailed(String error) {
+    return 'Falha ao ler a transação encriptada: $error';
+  }
+
+  @override
+  String statusOrderSaved(String ref) {
+    return 'Pedido $ref encriptado para esta conta e guardado offline';
+  }
+
+  @override
+  String get orderSavedSnackbar => 'Pedido guardado offline';
+
+  @override
+  String get statusBackupDownloaded => 'Cópia de segurança transferida';
+
+  @override
+  String get statusBackupRestored => 'Cópia de segurança restaurada';
+
+  @override
+  String statusRestoreFailed(String error) {
+    return 'Falha ao restaurar: $error';
+  }
+
+  @override
+  String get backupTooltip => 'Fazer cópia de segurança';
+
+  @override
+  String get restoreTooltip => 'Restaurar dados';
+
+  @override
+  String get refreshTooltip => 'Atualizar dados';
+
+  @override
+  String get restoreConfirmTitle => 'Restaurar a partir da cópia de segurança?';
+
+  @override
+  String get restoreConfirmBody =>
+      'Isto substituirá todos os dados atuais da loja e do cliente pelo conteúdo do ficheiro de cópia de segurança escolhido. Esta ação não pode ser desfeita.';
+
+  @override
+  String orderStatusChangedLog(int orderId, String statusLabel) {
+    return 'Pedido n.º $orderId → $statusLabel';
+  }
+
+  @override
+  String productSavedLog(String ref, String price) {
+    return 'Produto $ref guardado (NT\$$price)';
+  }
+
+  @override
+  String channelCreatedLog(String code, String name) {
+    return 'Canal $code criado: \"$name\"';
+  }
+
+  @override
+  String accountConnectedLog(String address) {
+    return 'Conta $address ligada';
+  }
+
+  @override
+  String agentJoinedLog(String address, String channel) {
+    return 'O agente $address juntou-se ao canal $channel';
+  }
+
+  @override
+  String get navContent => 'Conteúdo do menu';
+
+  @override
+  String get contentSectionTitle => 'Conteúdo do menu';
+
+  @override
+  String get contentSectionSubtitle =>
+      'Conteúdo da loja voltado para o cliente';
+
+  @override
+  String get newContentItemButton => 'Novo item';
+
+  @override
+  String get publishButton => 'Publicar para clientes';
+
+  @override
+  String get demoModeButton => 'Modo demonstração';
+
+  @override
+  String get contentEmpty => 'Ainda não há itens de conteúdo.';
+
+  @override
+  String get colCategory => 'Categoria';
+
+  @override
+  String get newContentItemTitle => 'Novo item';
+
+  @override
+  String get editContentItemTitle => 'Editar item';
+
+  @override
+  String get fieldCategory => 'Categoria';
+
+  @override
+  String get fieldDescription => 'Descrição';
+
+  @override
+  String get statusContentPublished =>
+      'Conteúdo do menu publicado para os clientes ligados';
+
+  @override
+  String get resetDataButton => 'Repor dados';
+
+  @override
+  String get resetConfirmTitle => 'Repor todos os dados?';
+
+  @override
+  String get resetConfirmBody =>
+      'Isto elimina permanentemente todos os dados de loja, chat, conteúdo do menu e fidelização neste dispositivo. A sua conta com sessão iniciada não é afetada. Esta ação não pode ser desfeita.';
+
+  @override
+  String get statusDataReset => 'Todos os dados foram repostos';
+
+  @override
+  String get navLoyalty => 'Fidelização';
+
+  @override
+  String get loyaltySectionTitle => 'Fidelização';
+
+  @override
+  String get loyaltySectionSubtitle => 'Pontos e níveis dos clientes';
+
+  @override
+  String get colWallet => 'Conta';
+
+  @override
+  String get colPointsBalance => 'Pontos';
+
+  @override
+  String get colTier => 'Nível';
+
+  @override
+  String get adjustPointsButton => 'Ajustar pontos';
+
+  @override
+  String get adjustPointsTitle => 'Ajustar pontos';
+
+  @override
+  String get pointsFieldLabel => 'Pontos (negativo para resgatar)';
+
+  @override
+  String get reasonFieldLabel => 'Motivo';
+
+  @override
+  String get loyaltyEmpty => 'Ainda não há contas de fidelização.';
+
+  @override
+  String get statusPointsAdjusted => 'Pontos ajustados';
+
+  @override
+  String get navBookings => 'Reservas';
+
+  @override
+  String get bookingsSectionTitle => 'Reservas';
+
+  @override
+  String get bookingsSectionSubtitle => 'Reservas de mesa e estado';
+
+  @override
+  String get seedMachinesButton => 'Carregar mesas de exemplo';
+
+  @override
+  String get machinesEmpty =>
+      'Ainda não há mesas. Carregue as mesas de exemplo para começar.';
+
+  @override
+  String get machineStateIdle => 'Livre';
+
+  @override
+  String get machineStateOccupied => 'Ocupada';
+
+  @override
+  String get machineStateMaintenance => 'Manutenção';
+
+  @override
+  String get setIdleButton => 'Definir como livre';
+
+  @override
+  String get setMaintenanceButton => 'Definir como manutenção';
+
+  @override
+  String get bookingsEmpty => 'Ainda não há reservas.';
+
+  @override
+  String get bookingStatusPlanned => 'Planeada';
+
+  @override
+  String get bookingStatusReleased => 'Confirmada';
+
+  @override
+  String get bookingStatusInProgress => 'Em curso';
+
+  @override
+  String get bookingStatusCompleted => 'Concluída';
+
+  @override
+  String get bookingStatusCanceled => 'Cancelada';
+
+  @override
+  String get releaseBookingMenuItem => 'Confirmar';
+
+  @override
+  String get startBookingMenuItem => 'Iniciar';
+
+  @override
+  String get completeBookingMenuItem => 'Concluir';
+
+  @override
+  String get cancelBookingMenuItem => 'Cancelar';
+
+  @override
+  String get clientBookingCardTitle => 'Reservar uma mesa';
+
+  @override
+  String get clientBookingMachineLabel => 'Mesa';
+
+  @override
+  String get clientBookingTimeLabel => 'Hora';
+
+  @override
+  String get clientBookingPartySizeLabel => 'Número de pessoas';
+
+  @override
+  String get clientBookingSubmitButton => 'Pedir reserva';
+
+  @override
+  String get statusBookingRequested => 'Pedido de reserva enviado';
+}

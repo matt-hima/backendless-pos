@@ -51,9 +51,9 @@ window.DuckDBBridge = { state: 'loading' };
         SELECT c.rowid AS order_id, c.ref AS order_ref, s.rowid AS thirdparty_id,
           s.nom AS thirdparty_name, s.code_client, s.email,
           p.firstname, p.lastname, c.total_ht, c.total_ttc, c.updated_at
-        FROM llx_commande c
-        JOIN llx_societe s ON s.rowid = c.fk_soc
-        LEFT JOIN llx_socpeople p ON p.fk_soc = s.rowid
+        FROM erp.llx_commande c
+        JOIN erp.llx_societe s ON s.rowid = c.fk_soc
+        LEFT JOIN erp.llx_socpeople p ON p.fk_soc = s.rowid
       ) TO 'dolibarr_orders.parquet' (FORMAT PARQUET)`);
       exportBytes = await database.copyFileToBuffer('dolibarr_orders.parquet');
     },
