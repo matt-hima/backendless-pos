@@ -27,14 +27,14 @@
   "statusPasskeyEnrolled": "Passkey sign-in is ready on this device",
 
   "accountEntryTitle": "Sign in",
-  "accountEntryBody": "Enter your mobile number and birthday. We'll sign you in if this device already has an account, or set one up if it doesn't.",
+  "accountEntryBody": "Enter your mobile number to send orders. Use passkey for quick access on this device; use Advanced options for birthday details or your recovery words on another device.",
   "accountChoiceTitle": "Advanced options",
   "accountChoiceBody": "Use these if you set a custom passphrase, or need to restore this account on a new device.",
   "accountUnlockButton": "Unlock with passphrase",
   "accountHighSecurityButton": "High security setup",
   "accountRestoreButton": "Restore with backup phrase",
   "accountAdvancedOptionsLink": "Advanced options",
-  "accountMismatchError": "That mobile number and birthday don't match this device's account. Use Advanced options to sign in a different way.",
+  "accountMismatchError": "That mobile number could not unlock this device. Use your passkey, or open Advanced options to use a passphrase or recovery words.",
   "accountSignInButton": "Sign in",
 
   "createPassphraseTitle": "Create account",
@@ -57,7 +57,7 @@
   "backupPhraseBody": "Write these 12 words down and keep them offline. Anyone with them can access this account.",
   "backupPhraseConfirmCheckbox": "I wrote down my backup phrase",
 
-  "quickSetupWarning": "This protects your account for daily use on this device. For stronger protection, use Advanced options.",
+  "quickSetupWarning": "Mobile number is for daily member access. Passkey is the fastest option on this device; keep birthday details or recovery words for access from another device.",
   "quickSetupMobileLabel": "Mobile number",
   "quickSetupBirthdayLabel": "Birthday (YYYY-MM-DD)",
   "storeNameFieldLabel": "Store name",

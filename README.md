@@ -18,13 +18,22 @@ python -m pip install -r mock_server/requirements.txt
 python -m uvicorn mock_server.main:app --host 0.0.0.0 --port 8000
 ```
 
+For a protected device sync endpoint, set a long random token before starting the emulator:
+
+```bash
+export DEVICE_SYNC_TOKEN="replace-with-a-long-random-token"
+python -m uvicorn mock_server.main:app --host 0.0.0.0 --port 8000
+```
+
+When using a local Flutter build, pass the same token with `--dart-define=DEVICE_SYNC_TOKEN=...`. For network exposure, terminate HTTPS in front of the emulator or start Uvicorn with an appropriate certificate and private key; do not expose plain HTTP beyond the trusted UTM/LAN segment.
+
 UTM networking must allow the host to reach the VM. With shared/NAT networking, find the VM address with:
 
 ```bash
 ip -4 addr
 ```
 
-Verify from the host browser or terminal that `http://VM_IP:8000/api/health` returns `{"status":"ok",...}`. Uploaded files appear in `mock_sd_card/dolibarr_orders.parquet` inside the VM.
+Verify from the host browser or terminal that `http://VM_IP:8000/api/health` returns `{"status":"ok",...}`. Opening `http://VM_IP:8000/` now reverse-proxies the hosted Flutter app from `https://remote-order.web.app`; uploaded files still appear in `mock_sd_card/dolibarr_orders.parquet` inside the VM.
 
 ## 2. Configure the Flutter client
 
@@ -37,7 +46,7 @@ flutter config --enable-web
 
 The file `web/duckdb_bridge.js` loads DuckDB-Wasm from jsDelivr and exposes a small browser API used by `DatabaseService`. `web/index.html` loads that bridge before Flutter. An internet connection is needed the first time the DuckDB-Wasm JavaScript and worker assets are fetched; production deployments should self-host and pin those assets.
 
-Start the app with the VM address:
+Start the app with the VM address when using the local Flutter build:
 
 ```bash
 flutter run -d chrome --dart-define=API_URL=http://VM_IP:8000
@@ -112,6 +121,10 @@ https://remote-order.web.app/?channel=ABC123
 The portal's **Create channel** action generates a code and shareable URL. Orders saved from that URL carry the channel code in their IndexedDB transaction record, keeping separate tables, rooms, or ordering sessions logically isolated.
 
 The hosted FQDN can save orders to browser IndexedDB, but it cannot directly write to a private ESP32/UTM IP from public HTTPS. For ESP32 sync, expose a secure HTTPS relay/API or run the client on the same reachable LAN; do not point a production hosted page at an unreachable private address.
+
+The UTM emulator provides that same-LAN path without rebuilding the web app: browse to `http://VM_IP:8000/`. GET/HEAD requests are proxied to `remote-order.web.app`, while `PUT /api/storage/sync` remains local and writes to the emulator's SD-card directory. Set `REMOTE_WEB_ORIGIN` if the hosted site changes.
+
+When the device is reachable, the portal calls `POST /api/device/attest` with a one-time nonce before accepting a WebRTC order. The emulator keeps its HMAC device key in `mock_sd_card/.device_auth_key` and returns only a proof; the key is never sent to the portal. If the device is offline, the portal remains usable and queues its local DuckDB state for a later sync.
 
 ## WebRTC portal connection
 

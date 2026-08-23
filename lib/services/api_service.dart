@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
@@ -15,5 +16,22 @@ class ApiService {
       throw Exception('Mock LilyGO rejected upload (${response.statusCode}): ${response.body}');
     }
   }
-}
 
+  /// Returns true when the device proves possession of its local key.
+  /// A device outage is intentionally treated as offline mode by the portal.
+  Future<bool> deviceAttest(String subject) async {
+    try {
+      final nonce = '$subject-${DateTime.now().microsecondsSinceEpoch}';
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/device/attest'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'nonce': nonce}),
+      );
+      return response.statusCode >= 200 &&
+          response.statusCode < 300 &&
+          (jsonDecode(response.body) as Map)['verified'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+}

@@ -249,6 +249,9 @@ class _LilyGoAppState extends State<LilyGoApp> {
 
   Future<void> _receiveOrder(OrderPayload payload) async {
     try {
+      if (Uri.base.path == '/portal') {
+        await api.deviceAttest(payload.order['ref'].toString());
+      }
       await db.upsertOrder(payload);
       final bytes = await db.exportParquet();
       await api.syncParquet(bytes);
@@ -313,6 +316,28 @@ class _LilyGoAppState extends State<LilyGoApp> {
 
   Future<void> _connectWallet() async {
     try {
+      // Customer checkout is intentionally mobile-first. The portal keeps
+      // the injected-wallet/admin login path, while the client only asks for
+      // mobile on the first order and uses FIDO automatically afterward.
+      if (Uri.base.path != '/portal') {
+        if (passkey.hasPasskey()) {
+          await _signInWithPasskey();
+          if (walletAddress != null) return;
+        }
+        await _accountEntry();
+        return;
+      }
+      // Passkeys are the fastest local membership path. If the browser asks
+      // for a different credential or the user cancels, show the normal
+      // mobile-number flow instead of blocking sign-in.
+      if (passkey.hasPasskey()) {
+        try {
+          await _signInWithPasskey();
+          if (walletAddress != null) return;
+        } catch (_) {
+          // Fall through to wallet or mobile sign-in.
+        }
+      }
       final address = await walletAuth.connect();
       if (address != null) {
         await _finishWalletLogin(address);
@@ -328,7 +353,6 @@ class _LilyGoAppState extends State<LilyGoApp> {
     final l = _l;
     final isPortal = Uri.base.path == '/portal';
     final mobileController = TextEditingController();
-    final birthdayController = TextEditingController();
     final storeNameController = TextEditingController();
     var advanced = false;
     final proceed = await showDialog<bool>(
@@ -347,12 +371,6 @@ class _LilyGoAppState extends State<LilyGoApp> {
                   autofocus: true,
                   decoration: InputDecoration(
                       labelText: l.quickSetupMobileLabel, border: const OutlineInputBorder())),
-              const SizedBox(height: 12),
-              TextField(
-                  controller: birthdayController,
-                  keyboardType: TextInputType.datetime,
-                  decoration: InputDecoration(
-                      labelText: l.quickSetupBirthdayLabel, border: const OutlineInputBorder())),
               if (isPortal) ...[
                 const SizedBox(height: 12),
                 TextField(
@@ -382,10 +400,8 @@ class _LilyGoAppState extends State<LilyGoApp> {
       ),
     );
     final mobile = mobileController.text.trim();
-    final birthday = birthdayController.text.trim();
     final storeName = storeNameController.text.trim();
     mobileController.dispose();
-    birthdayController.dispose();
     storeNameController.dispose();
     if (proceed != true) return;
     if (advanced) {
@@ -395,8 +411,8 @@ class _LilyGoAppState extends State<LilyGoApp> {
       if (action == 'restore') await _restoreLocalWallet();
       return;
     }
-    if (mobile.isEmpty || birthday.isEmpty) return;
-    final passphrase = '$mobile-$birthday';
+    if (mobile.isEmpty) return;
+    final passphrase = 'mobile:$mobile';
     if (await localWallet.hasWallet()) {
       try {
         final address = await localWallet.unlock(passphrase);
@@ -405,7 +421,8 @@ class _LilyGoAppState extends State<LilyGoApp> {
           return;
         }
       } catch (_) {
-        // falls through to the mismatch message below
+        // Older accounts used mobile + birthday. Keep that path compatible
+        // when a birthday is supplied through the advanced recovery flow.
       }
       if (mounted) setState(() => status = l.accountMismatchError);
       return;
@@ -417,12 +434,12 @@ class _LilyGoAppState extends State<LilyGoApp> {
     await _offerPasskeySetup(passphrase);
     final updated = _walletThirdParty(address);
     updated['encrypted_profile'] = await walletCrypto.encrypt(
-        {'phone_mobile': mobile, 'birthday': birthday, 'locale': _localeCode(currentLocale)});
+        {'phone_mobile': mobile, 'birthday': '', 'locale': _localeCode(currentLocale)});
     await indexedDb.saveWalletThirdParty(updated);
     if (mounted)
       setState(() {
         walletMobile = mobile;
-        walletBirthday = birthday;
+        walletBirthday = '';
         rememberWalletInfo = true;
       });
     await _finishWalletLogin(address, local: true);
@@ -878,6 +895,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
         'rowid': DateTime.now().millisecondsSinceEpoch + lines.length,
         'fk_commande': DateTime.now().millisecondsSinceEpoch,
         'fk_product': id,
+        'product': product,
         'qty': quantity,
         'subprice': product['price'],
         'total_ht': lineTotal,
@@ -889,10 +907,25 @@ class _LilyGoAppState extends State<LilyGoApp> {
     for (final line in lines) {
       line['fk_commande'] = transactionId;
     }
+    final member = _walletThirdParty(walletAddress!);
+    final firstProduct = Map<String, dynamic>.from(lines.first['product'] as Map);
     final payload = {
       'channel': activeChannel,
       'wallet': walletAddress,
-      'thirdparty': _walletThirdParty(walletAddress!),
+      'contact': {'id': transactionId + 1, 'firstname': '', 'lastname': ''},
+      'order': {
+        'id': transactionId,
+        'ref': 'WEB-$transactionId',
+        'total_ht': total,
+        'total_ttc': total * 1.05,
+      },
+      'thirdparty': {
+        'id': member['rowid'],
+        'name': member['nom'],
+        'code': member['code_client'],
+        'email': member['email'],
+      },
+      'product': firstProduct,
       'total_ttc': total * 1.05,
       'lines': lines,
       'created_at': DateTime.now().toIso8601String()
@@ -904,6 +937,10 @@ class _LilyGoAppState extends State<LilyGoApp> {
         wallet: walletAddress!,
         encryptedPayload: encryptedPayload);
     await _loadClientStats();
+    _sendRtcMessage({
+      'type': 'client_order',
+      'payload': payload,
+    });
     _sendRtcMessage({
       'type': 'loyalty_earn',
       'wallet': walletAddress,
@@ -1650,6 +1687,28 @@ class _LilyGoAppState extends State<LilyGoApp> {
       }
       return;
     }
+    if (type == 'client_order') {
+      if (Uri.base.path != '/portal') return;
+      final payload = envelope['payload'];
+      if (payload is! Map) return;
+      try {
+        final order = OrderPayload.fromJson(Map<String, dynamic>.from(payload));
+        await _receiveOrder(order);
+        _sendRtcMessage({
+          'type': 'client_order_ack',
+          'ref': order.order['ref'],
+          'status': 'stored',
+        });
+      } catch (error) {
+        if (mounted) setState(() => status = _l.statusSyncError(error.toString()));
+      }
+      return;
+    }
+    if (type == 'client_order_ack') {
+      if (Uri.base.path == '/portal') return;
+      if (mounted) setState(() => status = _l.orderSavedSnackbar);
+      return;
+    }
     if (type == 'booking_request') {
       if (Uri.base.path != '/portal') return;
       final machineId = (envelope['machineId'] as num?)?.toInt();
@@ -1820,10 +1879,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
                               : l.clientOrderUnlockedSubtitle(
                                   clientTransactionCount, _number(clientTransactionTotal))),
                           trailing: walletAddress == null
-                              ? FilledButton.icon(
-                                  onPressed: _connectWallet,
-                                  icon: const Icon(Icons.login),
-                                  label: Text(l.accountSignInButton))
+                              ? null
                               : OutlinedButton.icon(
                                   onPressed: _editPreferences,
                                   icon: const Icon(Icons.contact_page_outlined),
@@ -1976,9 +2032,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
                           color: Theme.of(context).colorScheme.onPrimary,
                           fontWeight: FontWeight.bold))),
               FilledButton(
-                  onPressed: count == 0 || walletAddress == null
-                      ? null
-                      : _submitClientOrder,
+                  onPressed: count == 0 ? null : _submitClientOrder,
                   child: Text(l.clientOrderConfirmButton))
             ])));
   }

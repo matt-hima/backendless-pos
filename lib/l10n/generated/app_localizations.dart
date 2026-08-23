@@ -228,7 +228,7 @@ abstract class AppLocalizations {
   /// No description provided for @accountEntryBody.
   ///
   /// In en, this message translates to:
-  /// **'Enter your mobile number and birthday. We\'ll sign you in if this device already has an account, or set one up if it doesn\'t.'**
+  /// **'Enter your mobile number to send orders. Use passkey for quick access on this device; use Advanced options for birthday details or your recovery words on another device.'**
   String get accountEntryBody;
 
   /// No description provided for @accountChoiceTitle.
@@ -270,7 +270,7 @@ abstract class AppLocalizations {
   /// No description provided for @accountMismatchError.
   ///
   /// In en, this message translates to:
-  /// **'That mobile number and birthday don\'t match this device\'s account. Use Advanced options to sign in a different way.'**
+  /// **'That mobile number could not unlock this device. Use your passkey, or open Advanced options to use a passphrase or recovery words.'**
   String get accountMismatchError;
 
   /// No description provided for @accountSignInButton.
@@ -378,7 +378,7 @@ abstract class AppLocalizations {
   /// No description provided for @quickSetupWarning.
   ///
   /// In en, this message translates to:
-  /// **'This protects your account for daily use on this device. For stronger protection, use Advanced options.'**
+  /// **'Mobile number is for daily member access. Passkey is the fastest option on this device; keep birthday details or recovery words for access from another device.'**
   String get quickSetupWarning;
 
   /// No description provided for @quickSetupMobileLabel.
