@@ -1386,4 +1386,167 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get uncategorizedLabel => 'Uncategorized';
+
+  @override
+  String get fieldProductType => 'Type';
+
+  @override
+  String get productTypeGoods => 'Goods';
+
+  @override
+  String get productTypeService => 'Service';
+
+  @override
+  String get fieldBarcode => 'Barcode';
+
+  @override
+  String get fieldStockAlert => 'Stock alert threshold';
+
+  @override
+  String get productEnabledLabel => 'Available for sale';
+
+  @override
+  String get productEnabledHint =>
+      'Turn off to hide this product from the register without deleting it';
+
+  @override
+  String get colBarcode => 'Barcode';
+
+  @override
+  String get productDisabledSuffix => '(hidden)';
+
+  @override
+  String get bookingsTabLabel => 'Bookings';
+
+  @override
+  String get staffShiftsTabLabel => 'Staff & shifts';
+
+  @override
+  String get downtimeTabLabel => 'Downtime';
+
+  @override
+  String assignedWorkerLabel(String name) {
+    return 'Assigned to $name';
+  }
+
+  @override
+  String get workersSectionTitle => 'Staff';
+
+  @override
+  String get newWorkerButton => 'New staff member';
+
+  @override
+  String get editWorkerTitle => 'Edit staff member';
+
+  @override
+  String get workersEmpty => 'No staff members yet.';
+
+  @override
+  String get shiftsSectionTitle => 'Shifts';
+
+  @override
+  String get newShiftButton => 'New shift';
+
+  @override
+  String get editShiftTitle => 'Edit shift';
+
+  @override
+  String get shiftsEmpty =>
+      'No shifts yet — resources are treated as always open.';
+
+  @override
+  String get allResourcesLabel => 'All resources';
+
+  @override
+  String get weekdayMon => 'Mon';
+
+  @override
+  String get weekdayTue => 'Tue';
+
+  @override
+  String get weekdayWed => 'Wed';
+
+  @override
+  String get weekdayThu => 'Thu';
+
+  @override
+  String get weekdayFri => 'Fri';
+
+  @override
+  String get weekdaySat => 'Sat';
+
+  @override
+  String get weekdaySun => 'Sun';
+
+  @override
+  String get activeDowntimesTitle => 'Active downtime';
+
+  @override
+  String get activeDowntimesEmpty => 'No resources are currently down.';
+
+  @override
+  String get downtimeHistoryTitle => 'History';
+
+  @override
+  String get downtimeHistoryEmpty => 'No downtime recorded yet.';
+
+  @override
+  String get colResource => 'Resource';
+
+  @override
+  String get fieldResource => 'Resource';
+
+  @override
+  String get fieldDowntimeReason => 'Reason';
+
+  @override
+  String get fieldNotes => 'Notes';
+
+  @override
+  String get fieldEmail => 'Email';
+
+  @override
+  String get fieldPhone => 'Phone';
+
+  @override
+  String get fieldStartTime => 'Start';
+
+  @override
+  String get fieldEndTime => 'End';
+
+  @override
+  String get startDowntimeButton => 'Start downtime';
+
+  @override
+  String get endDowntimeButton => 'End';
+
+  @override
+  String get clientBookingWorkerLabel => 'Preferred staff';
+
+  @override
+  String get noPreferenceOption => 'No preference';
+
+  @override
+  String statusBookingRejected(String reason) {
+    return 'Booking request declined: $reason';
+  }
+
+  @override
+  String get availabilityReasonUnknown => 'Not available';
+
+  @override
+  String get availabilityReasonOutOfSchedule => 'Outside operating hours';
+
+  @override
+  String get availabilityReasonMachineBusy =>
+      'Resource is down for maintenance';
+
+  @override
+  String get availabilityReasonResourceBooked => 'Resource is already booked';
+
+  @override
+  String get availabilityReasonWorkerBusy => 'Staff member is already booked';
+
+  @override
+  String get workerActiveLabel => 'Active';
 }

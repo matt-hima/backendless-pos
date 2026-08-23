@@ -31,7 +31,11 @@ class DatabaseService {
       );
       CREATE TABLE IF NOT EXISTS erp.llx_product (
         rowid BIGINT PRIMARY KEY, ref VARCHAR NOT NULL, label VARCHAR NOT NULL,
+        description VARCHAR, barcode VARCHAR, fk_barcode_type INTEGER,
         price DOUBLE NOT NULL, tva_tx DOUBLE DEFAULT 20,
+        fk_product_type SMALLINT DEFAULT 0,
+        tosell SMALLINT DEFAULT 1, tobuy SMALLINT DEFAULT 1,
+        seuil_stock_alerte DOUBLE,
         photo VARCHAR, photo_mime VARCHAR,
         stock DOUBLE DEFAULT 0, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -149,6 +153,29 @@ class DatabaseService {
         status VARCHAR NOT NULL DEFAULT 'planned',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      CREATE TABLE IF NOT EXISTS mes.workers (
+        id BIGINT PRIMARY KEY, code VARCHAR, name VARCHAR NOT NULL,
+        email VARCHAR, phone VARCHAR, is_active BOOLEAN DEFAULT true,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS mes.shifts (
+        id BIGINT PRIMARY KEY, name VARCHAR NOT NULL, code VARCHAR,
+        start_time VARCHAR NOT NULL, end_time VARCHAR NOT NULL,
+        days_of_week VARCHAR DEFAULT '[1,2,3,4,5]', machine_id BIGINT,
+        is_active BOOLEAN DEFAULT true, sort_order INTEGER DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS mes.downtime_reasons (
+        id BIGINT PRIMARY KEY, name VARCHAR NOT NULL, code VARCHAR UNIQUE,
+        is_planned BOOLEAN DEFAULT false, is_active BOOLEAN DEFAULT true,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS mes.production_downtimes (
+        id BIGINT PRIMARY KEY, machine_id BIGINT NOT NULL, downtime_reason_id BIGINT NOT NULL,
+        started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, ended_at TIMESTAMP,
+        duration_minutes INTEGER, notes VARCHAR, reported_by VARCHAR,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
       CREATE SCHEMA IF NOT EXISTS iam;
       CREATE TABLE IF NOT EXISTS iam.realm (
         id VARCHAR PRIMARY KEY, name VARCHAR NOT NULL
@@ -192,12 +219,37 @@ class DatabaseService {
     await execute(
       'ALTER TABLE erp.llx_product ADD COLUMN IF NOT EXISTS tax_included BOOLEAN DEFAULT true;',
     );
+    await execute(
+      'ALTER TABLE erp.llx_product ADD COLUMN IF NOT EXISTS description VARCHAR;',
+    );
+    await execute(
+      'ALTER TABLE erp.llx_product ADD COLUMN IF NOT EXISTS barcode VARCHAR;',
+    );
+    await execute(
+      'ALTER TABLE erp.llx_product ADD COLUMN IF NOT EXISTS fk_barcode_type INTEGER;',
+    );
+    await execute(
+      'ALTER TABLE erp.llx_product ADD COLUMN IF NOT EXISTS fk_product_type SMALLINT DEFAULT 0;',
+    );
+    await execute(
+      'ALTER TABLE erp.llx_product ADD COLUMN IF NOT EXISTS tosell SMALLINT DEFAULT 1;',
+    );
+    await execute(
+      'ALTER TABLE erp.llx_product ADD COLUMN IF NOT EXISTS tobuy SMALLINT DEFAULT 1;',
+    );
+    await execute(
+      'ALTER TABLE erp.llx_product ADD COLUMN IF NOT EXISTS seuil_stock_alerte DOUBLE;',
+    );
+    await execute(
+      'ALTER TABLE mes.production_orders ADD COLUMN IF NOT EXISTS worker_id BIGINT;',
+    );
     await execute('''
       DELETE FROM erp.llx_commandedet WHERE fk_commande IN (SELECT rowid FROM erp.llx_commande WHERE ref LIKE 'MOCK-%');
       DELETE FROM erp.llx_commande WHERE ref LIKE 'MOCK-%';
     ''');
     await _seedBuiltinRoles();
     await _seedPaymentTypes();
+    await _seedDowntimeReasons();
   }
 
   Future<void> _seedPaymentTypes() async {
@@ -206,6 +258,24 @@ class DatabaseService {
       await execute('''
         INSERT INTO erp.llx_c_paiement (code, libelle) VALUES (${_q(entry.key)}, ${_q(entry.value)})
         ON CONFLICT (code) DO NOTHING;
+      ''');
+    }
+  }
+
+  Future<void> _seedDowntimeReasons() async {
+    final existing = await rows('SELECT code FROM mes.downtime_reasons');
+    final existingCodes = existing.map((r) => r['code'].toString()).toSet();
+    const reasons = {
+      'MAINT': ('Maintenance', true),
+      'CLEAN': ('Cleaning', true),
+      'CLOSED': ('Closed', false),
+    };
+    for (final entry in reasons.entries) {
+      if (existingCodes.contains(entry.key)) continue;
+      final id = DateTime.now().millisecondsSinceEpoch + (_idSeq++ % 1000);
+      await execute('''
+        INSERT INTO mes.downtime_reasons (id, name, code, is_planned)
+        VALUES ($id, ${_q(entry.value.$1)}, ${_q(entry.key)}, ${entry.value.$2});
       ''');
     }
   }
@@ -339,24 +409,38 @@ class DatabaseService {
     String? photoMime,
     int? categoryId,
     bool taxIncluded = true,
+    String? description,
+    String? barcode,
+    int productType = 0,
+    bool tosell = true,
+    bool tobuy = true,
+    double? stockAlertThreshold,
   }) async {
     final productId = id ?? DateTime.now().millisecondsSinceEpoch;
     await execute('''
       INSERT INTO erp.llx_product
-        (rowid, ref, label, price, tva_tx, photo, photo_mime, stock, tax_included)
+        (rowid, ref, label, description, barcode, price, tva_tx, photo, photo_mime,
+         stock, tax_included, fk_product_type, tosell, tobuy, seuil_stock_alerte)
       VALUES (
-        $productId, ${_q(ref)}, ${_q(label)}, $price, $tax,
+        $productId, ${_q(ref)}, ${_q(label)},
+        ${description == null ? 'NULL' : _q(description)},
+        ${barcode == null ? 'NULL' : _q(barcode)},
+        $price, $tax,
         ${photo == null ? 'NULL' : _q(photo)},
         ${photoMime == null ? 'NULL' : _q(photoMime)},
-        $stock, $taxIncluded
+        $stock, $taxIncluded, $productType, ${tosell ? 1 : 0}, ${tobuy ? 1 : 0},
+        ${stockAlertThreshold ?? 'NULL'}
       )
       ON CONFLICT (rowid) DO UPDATE SET
-        ref = EXCLUDED.ref, label = EXCLUDED.label, price = EXCLUDED.price,
+        ref = EXCLUDED.ref, label = EXCLUDED.label, description = EXCLUDED.description,
+        barcode = EXCLUDED.barcode, price = EXCLUDED.price,
         tva_tx = EXCLUDED.tva_tx, photo = EXCLUDED.photo,
-        photo_mime = EXCLUDED.photo_mime,
-        stock = EXCLUDED.stock, tax_included = EXCLUDED.tax_included, updated_at = now();
+        photo_mime = EXCLUDED.photo_mime, stock = EXCLUDED.stock,
+        tax_included = EXCLUDED.tax_included, fk_product_type = EXCLUDED.fk_product_type,
+        tosell = EXCLUDED.tosell, tobuy = EXCLUDED.tobuy,
+        seuil_stock_alerte = EXCLUDED.seuil_stock_alerte, updated_at = now();
     ''');
-    if (categoryId != null) await setProductCategory(productId, categoryId);
+    await setProductCategory(productId, categoryId);
   }
 
   // --- Categories (Dolibarr llx_categorie / llx_categorie_product) ---
@@ -873,22 +957,217 @@ class DatabaseService {
     return overlapping.isNotEmpty;
   }
 
+  // --- Full-service booking & availability (schema: OpenMES workers/shifts/
+  // downtime_reasons/production_downtimes; flow: pos-api-dev's layered
+  // ScheduleService.validate()/AvailabilityHandler.check() reason-code checks) ---
+
+  Future<Map<String, dynamic>> checkAvailability({
+    required int machineId,
+    required DateTime start,
+    required DateTime end,
+    int? workerId,
+  }) async {
+    final shiftRows = await rows(
+      'SELECT * FROM mes.shifts WHERE is_active = true AND (machine_id = $machineId OR machine_id IS NULL)',
+    );
+    if (shiftRows.isNotEmpty) {
+      final weekday = start.weekday; // 1=Mon .. 7=Sun, matches ISO days_of_week
+      final startMinutes = start.hour * 60 + start.minute;
+      final endMinutes = end.hour * 60 + end.minute;
+      final coveredByAnyShift = shiftRows.any((shift) {
+        final days = (jsonDecode(shift['days_of_week'].toString()) as List)
+            .map((d) => (d as num).toInt())
+            .toSet();
+        if (!days.contains(weekday)) return false;
+        final shiftStart = _minutesOf(shift['start_time'].toString());
+        final shiftEnd = _minutesOf(shift['end_time'].toString());
+        return startMinutes >= shiftStart && endMinutes <= shiftEnd;
+      });
+      if (!coveredByAnyShift) {
+        return {'available': false, 'reason': 'OUT_OF_SCHEDULE'};
+      }
+    }
+    final downtime = await rows('''
+      SELECT id FROM mes.production_downtimes
+      WHERE machine_id = $machineId
+        AND started_at < TIMESTAMP '${end.toIso8601String()}'
+        AND COALESCE(ended_at, TIMESTAMP '9999-12-31') > TIMESTAMP '${start.toIso8601String()}'
+    ''');
+    if (downtime.isNotEmpty) {
+      return {'available': false, 'reason': 'MACHINE_BUSY'};
+    }
+    if (await hasOverlap(machineId, start, end)) {
+      return {'available': false, 'reason': 'RESOURCE_BOOKED'};
+    }
+    if (workerId != null) {
+      final workerBusy = await rows('''
+        SELECT id FROM mes.production_orders
+        WHERE worker_id = $workerId AND status NOT IN ('completed', 'canceled')
+          AND scheduled_start < TIMESTAMP '${end.toIso8601String()}'
+          AND scheduled_end > TIMESTAMP '${start.toIso8601String()}'
+      ''');
+      if (workerBusy.isNotEmpty) {
+        return {'available': false, 'reason': 'WORKER_BUSY'};
+      }
+    }
+    return {'available': true, 'reason': null};
+  }
+
+  int _minutesOf(String hhmm) {
+    final parts = hhmm.split(':');
+    return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+  }
+
   Future<int> createBooking({
     required int machineId,
     required String customerWallet,
     required int partySize,
     required DateTime start,
     required DateTime end,
+    int? workerId,
   }) async {
     final id = DateTime.now().millisecondsSinceEpoch;
     await execute('''
       INSERT INTO mes.production_orders
-        (id, ref, machine_id, customer_wallet, party_size, scheduled_start, scheduled_end)
+        (id, ref, machine_id, customer_wallet, party_size, scheduled_start, scheduled_end, worker_id)
       VALUES ($id, ${_q('BK-$id')}, $machineId, ${_q(customerWallet)}, $partySize,
-        TIMESTAMP '${start.toIso8601String()}', TIMESTAMP '${end.toIso8601String()}');
+        TIMESTAMP '${start.toIso8601String()}', TIMESTAMP '${end.toIso8601String()}',
+        ${workerId ?? 'NULL'});
     ''');
     return id;
   }
+
+  // --- Workers (OpenMES `workers`) ---
+
+  Future<void> saveWorker({
+    int? id,
+    required String code,
+    required String name,
+    String? email,
+    String? phone,
+    bool active = true,
+  }) async {
+    final workerId = id ?? DateTime.now().millisecondsSinceEpoch;
+    await execute('''
+      INSERT INTO mes.workers (id, code, name, email, phone, is_active)
+      VALUES ($workerId, ${_q(code)}, ${_q(name)},
+        ${email == null || email.isEmpty ? 'NULL' : _q(email)},
+        ${phone == null || phone.isEmpty ? 'NULL' : _q(phone)}, $active)
+      ON CONFLICT (id) DO UPDATE SET
+        code = EXCLUDED.code, name = EXCLUDED.name, email = EXCLUDED.email,
+        phone = EXCLUDED.phone, is_active = EXCLUDED.is_active, updated_at = now();
+    ''');
+  }
+
+  Future<List<Map<String, dynamic>>> workers() =>
+      rows('SELECT * FROM mes.workers ORDER BY name');
+
+  Future<void> deleteWorker(int id) async {
+    await execute(
+      'UPDATE mes.production_orders SET worker_id = NULL WHERE worker_id = $id;',
+    );
+    await execute('DELETE FROM mes.workers WHERE id = $id;');
+  }
+
+  // --- Shifts (OpenMES `shifts` — recurring weekly availability windows) ---
+
+  Future<void> saveShift({
+    int? id,
+    required String name,
+    String? code,
+    required String startTime,
+    required String endTime,
+    required List<int> daysOfWeek,
+    int? machineId,
+    bool active = true,
+  }) async {
+    final shiftId = id ?? DateTime.now().millisecondsSinceEpoch;
+    await execute('''
+      INSERT INTO mes.shifts (id, name, code, start_time, end_time, days_of_week, machine_id, is_active)
+      VALUES ($shiftId, ${_q(name)}, ${code == null || code.isEmpty ? 'NULL' : _q(code)},
+        ${_q(startTime)}, ${_q(endTime)}, ${_q(jsonEncode(daysOfWeek))},
+        ${machineId ?? 'NULL'}, $active)
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name, code = EXCLUDED.code, start_time = EXCLUDED.start_time,
+        end_time = EXCLUDED.end_time, days_of_week = EXCLUDED.days_of_week,
+        machine_id = EXCLUDED.machine_id, is_active = EXCLUDED.is_active, updated_at = now();
+    ''');
+  }
+
+  Future<List<Map<String, dynamic>>> shifts() =>
+      rows('SELECT * FROM mes.shifts ORDER BY sort_order, start_time');
+
+  Future<void> deleteShift(int id) async {
+    await execute('DELETE FROM mes.shifts WHERE id = $id;');
+  }
+
+  // --- Downtime (OpenMES `downtime_reasons` / `production_downtimes`) ---
+
+  Future<List<Map<String, dynamic>>> downtimeReasons() =>
+      rows('SELECT * FROM mes.downtime_reasons WHERE is_active = true ORDER BY name');
+
+  Future<int> startDowntime({
+    required int machineId,
+    required int reasonId,
+    String? notes,
+    String? reportedBy,
+  }) async {
+    final id = DateTime.now().millisecondsSinceEpoch;
+    await execute('''
+      INSERT INTO mes.production_downtimes (id, machine_id, downtime_reason_id, notes, reported_by)
+      VALUES ($id, $machineId, $reasonId,
+        ${notes == null || notes.isEmpty ? 'NULL' : _q(notes)},
+        ${reportedBy == null ? 'NULL' : _q(reportedBy)});
+    ''');
+    await setMachineState(machineId, 'maintenance');
+    return id;
+  }
+
+  Future<void> endDowntime(int id) async {
+    final row = await rows(
+      'SELECT machine_id, started_at FROM mes.production_downtimes WHERE id = $id',
+    );
+    if (row.isEmpty) return;
+    final startedAt = row.first['started_at'];
+    final startedAtMs = startedAt is num
+        ? startedAt.round()
+        : DateTime.tryParse(startedAt.toString())?.millisecondsSinceEpoch;
+    final durationMinutes = startedAtMs == null
+        ? 0
+        : DateTime.now()
+              .difference(DateTime.fromMillisecondsSinceEpoch(startedAtMs))
+              .inMinutes;
+    await execute('''
+      UPDATE mes.production_downtimes SET ended_at = now(),
+        duration_minutes = $durationMinutes
+      WHERE id = $id;
+    ''');
+    final machineId = row.first['machine_id'] as int;
+    final stillDown = await rows(
+      'SELECT id FROM mes.production_downtimes WHERE machine_id = $machineId AND ended_at IS NULL',
+    );
+    if (stillDown.isEmpty) {
+      await setMachineState(machineId, 'idle');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> activeDowntimes() => rows('''
+    SELECT d.*, m.name AS machine_name, r.name AS reason_name
+    FROM mes.production_downtimes d
+    JOIN mes.machines m ON m.id = d.machine_id
+    JOIN mes.downtime_reasons r ON r.id = d.downtime_reason_id
+    WHERE d.ended_at IS NULL
+    ORDER BY d.started_at DESC
+  ''');
+
+  Future<List<Map<String, dynamic>>> downtimeHistory() => rows('''
+    SELECT d.*, m.name AS machine_name, r.name AS reason_name
+    FROM mes.production_downtimes d
+    JOIN mes.machines m ON m.id = d.machine_id
+    JOIN mes.downtime_reasons r ON r.id = d.downtime_reason_id
+    ORDER BY d.started_at DESC
+    LIMIT 100
+  ''');
 
   Future<void> updateBookingStatus(int id, String status) async {
     final order = await rows(
@@ -1027,6 +1306,10 @@ class DatabaseService {
     'loyalty.points_transactions',
     'mes.machines',
     'mes.production_orders',
+    'mes.workers',
+    'mes.shifts',
+    'mes.downtime_reasons',
+    'mes.production_downtimes',
     'iam.users',
     'iam.roles',
     'iam.role_permissions',

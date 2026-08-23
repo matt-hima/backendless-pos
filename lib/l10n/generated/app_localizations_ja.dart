@@ -9,7 +9,7 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
-  String get appTitle => '店舗管理';
+  String get appTitle => 'Glass&Frame 美視界';
 
   @override
   String get portalLoginTitle => '店舗ログイン';
@@ -1353,4 +1353,164 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get uncategorizedLabel => '未分類';
+
+  @override
+  String get fieldProductType => '種別';
+
+  @override
+  String get productTypeGoods => '商品';
+
+  @override
+  String get productTypeService => 'サービス';
+
+  @override
+  String get fieldBarcode => 'バーコード';
+
+  @override
+  String get fieldStockAlert => '在庫アラートのしきい値';
+
+  @override
+  String get productEnabledLabel => '販売する';
+
+  @override
+  String get productEnabledHint => 'オフにすると、削除せずにレジの一覧から非表示にできます';
+
+  @override
+  String get colBarcode => 'バーコード';
+
+  @override
+  String get productDisabledSuffix => '（非表示）';
+
+  @override
+  String get bookingsTabLabel => '予約';
+
+  @override
+  String get staffShiftsTabLabel => 'スタッフ・シフト';
+
+  @override
+  String get downtimeTabLabel => '休止';
+
+  @override
+  String assignedWorkerLabel(String name) {
+    return '担当：$name';
+  }
+
+  @override
+  String get workersSectionTitle => 'スタッフ';
+
+  @override
+  String get newWorkerButton => '新しいスタッフ';
+
+  @override
+  String get editWorkerTitle => 'スタッフを編集';
+
+  @override
+  String get workersEmpty => 'スタッフがまだ登録されていません。';
+
+  @override
+  String get shiftsSectionTitle => 'シフト';
+
+  @override
+  String get newShiftButton => '新しいシフト';
+
+  @override
+  String get editShiftTitle => 'シフトを編集';
+
+  @override
+  String get shiftsEmpty => 'シフトが未設定です。設定するまでリソースは常時営業として扱われます。';
+
+  @override
+  String get allResourcesLabel => 'すべてのリソース';
+
+  @override
+  String get weekdayMon => '月';
+
+  @override
+  String get weekdayTue => '火';
+
+  @override
+  String get weekdayWed => '水';
+
+  @override
+  String get weekdayThu => '木';
+
+  @override
+  String get weekdayFri => '金';
+
+  @override
+  String get weekdaySat => '土';
+
+  @override
+  String get weekdaySun => '日';
+
+  @override
+  String get activeDowntimesTitle => '休止中';
+
+  @override
+  String get activeDowntimesEmpty => '現在休止中のリソースはありません。';
+
+  @override
+  String get downtimeHistoryTitle => '履歴';
+
+  @override
+  String get downtimeHistoryEmpty => '休止の記録はまだありません。';
+
+  @override
+  String get colResource => 'リソース';
+
+  @override
+  String get fieldResource => 'リソース';
+
+  @override
+  String get fieldDowntimeReason => '理由';
+
+  @override
+  String get fieldNotes => 'メモ';
+
+  @override
+  String get fieldEmail => 'メール';
+
+  @override
+  String get fieldPhone => '電話番号';
+
+  @override
+  String get fieldStartTime => '開始';
+
+  @override
+  String get fieldEndTime => '終了';
+
+  @override
+  String get startDowntimeButton => '休止を開始';
+
+  @override
+  String get endDowntimeButton => '終了する';
+
+  @override
+  String get clientBookingWorkerLabel => '指名スタッフ';
+
+  @override
+  String get noPreferenceOption => '指名なし';
+
+  @override
+  String statusBookingRejected(String reason) {
+    return '予約リクエストが拒否されました：$reason';
+  }
+
+  @override
+  String get availabilityReasonUnknown => '予約できません';
+
+  @override
+  String get availabilityReasonOutOfSchedule => '営業時間外です';
+
+  @override
+  String get availabilityReasonMachineBusy => 'リソースはメンテナンス中です';
+
+  @override
+  String get availabilityReasonResourceBooked => 'リソースは既に予約されています';
+
+  @override
+  String get availabilityReasonWorkerBusy => 'スタッフは既に予約が入っています';
+
+  @override
+  String get workerActiveLabel => '稼働中';
 }

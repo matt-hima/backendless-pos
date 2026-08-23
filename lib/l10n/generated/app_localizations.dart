@@ -2528,6 +2528,318 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Uncategorized'**
   String get uncategorizedLabel;
+
+  /// No description provided for @fieldProductType.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get fieldProductType;
+
+  /// No description provided for @productTypeGoods.
+  ///
+  /// In en, this message translates to:
+  /// **'Goods'**
+  String get productTypeGoods;
+
+  /// No description provided for @productTypeService.
+  ///
+  /// In en, this message translates to:
+  /// **'Service'**
+  String get productTypeService;
+
+  /// No description provided for @fieldBarcode.
+  ///
+  /// In en, this message translates to:
+  /// **'Barcode'**
+  String get fieldBarcode;
+
+  /// No description provided for @fieldStockAlert.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock alert threshold'**
+  String get fieldStockAlert;
+
+  /// No description provided for @productEnabledLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Available for sale'**
+  String get productEnabledLabel;
+
+  /// No description provided for @productEnabledHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off to hide this product from the register without deleting it'**
+  String get productEnabledHint;
+
+  /// No description provided for @colBarcode.
+  ///
+  /// In en, this message translates to:
+  /// **'Barcode'**
+  String get colBarcode;
+
+  /// No description provided for @productDisabledSuffix.
+  ///
+  /// In en, this message translates to:
+  /// **'(hidden)'**
+  String get productDisabledSuffix;
+
+  /// No description provided for @bookingsTabLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookings'**
+  String get bookingsTabLabel;
+
+  /// No description provided for @staffShiftsTabLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Staff & shifts'**
+  String get staffShiftsTabLabel;
+
+  /// No description provided for @downtimeTabLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Downtime'**
+  String get downtimeTabLabel;
+
+  /// No description provided for @assignedWorkerLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Assigned to {name}'**
+  String assignedWorkerLabel(String name);
+
+  /// No description provided for @workersSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Staff'**
+  String get workersSectionTitle;
+
+  /// No description provided for @newWorkerButton.
+  ///
+  /// In en, this message translates to:
+  /// **'New staff member'**
+  String get newWorkerButton;
+
+  /// No description provided for @editWorkerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit staff member'**
+  String get editWorkerTitle;
+
+  /// No description provided for @workersEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No staff members yet.'**
+  String get workersEmpty;
+
+  /// No description provided for @shiftsSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Shifts'**
+  String get shiftsSectionTitle;
+
+  /// No description provided for @newShiftButton.
+  ///
+  /// In en, this message translates to:
+  /// **'New shift'**
+  String get newShiftButton;
+
+  /// No description provided for @editShiftTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit shift'**
+  String get editShiftTitle;
+
+  /// No description provided for @shiftsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No shifts yet — resources are treated as always open.'**
+  String get shiftsEmpty;
+
+  /// No description provided for @allResourcesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'All resources'**
+  String get allResourcesLabel;
+
+  /// No description provided for @weekdayMon.
+  ///
+  /// In en, this message translates to:
+  /// **'Mon'**
+  String get weekdayMon;
+
+  /// No description provided for @weekdayTue.
+  ///
+  /// In en, this message translates to:
+  /// **'Tue'**
+  String get weekdayTue;
+
+  /// No description provided for @weekdayWed.
+  ///
+  /// In en, this message translates to:
+  /// **'Wed'**
+  String get weekdayWed;
+
+  /// No description provided for @weekdayThu.
+  ///
+  /// In en, this message translates to:
+  /// **'Thu'**
+  String get weekdayThu;
+
+  /// No description provided for @weekdayFri.
+  ///
+  /// In en, this message translates to:
+  /// **'Fri'**
+  String get weekdayFri;
+
+  /// No description provided for @weekdaySat.
+  ///
+  /// In en, this message translates to:
+  /// **'Sat'**
+  String get weekdaySat;
+
+  /// No description provided for @weekdaySun.
+  ///
+  /// In en, this message translates to:
+  /// **'Sun'**
+  String get weekdaySun;
+
+  /// No description provided for @activeDowntimesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Active downtime'**
+  String get activeDowntimesTitle;
+
+  /// No description provided for @activeDowntimesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No resources are currently down.'**
+  String get activeDowntimesEmpty;
+
+  /// No description provided for @downtimeHistoryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get downtimeHistoryTitle;
+
+  /// No description provided for @downtimeHistoryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No downtime recorded yet.'**
+  String get downtimeHistoryEmpty;
+
+  /// No description provided for @colResource.
+  ///
+  /// In en, this message translates to:
+  /// **'Resource'**
+  String get colResource;
+
+  /// No description provided for @fieldResource.
+  ///
+  /// In en, this message translates to:
+  /// **'Resource'**
+  String get fieldResource;
+
+  /// No description provided for @fieldDowntimeReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason'**
+  String get fieldDowntimeReason;
+
+  /// No description provided for @fieldNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes'**
+  String get fieldNotes;
+
+  /// No description provided for @fieldEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Email'**
+  String get fieldEmail;
+
+  /// No description provided for @fieldPhone.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone'**
+  String get fieldPhone;
+
+  /// No description provided for @fieldStartTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get fieldStartTime;
+
+  /// No description provided for @fieldEndTime.
+  ///
+  /// In en, this message translates to:
+  /// **'End'**
+  String get fieldEndTime;
+
+  /// No description provided for @startDowntimeButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Start downtime'**
+  String get startDowntimeButton;
+
+  /// No description provided for @endDowntimeButton.
+  ///
+  /// In en, this message translates to:
+  /// **'End'**
+  String get endDowntimeButton;
+
+  /// No description provided for @clientBookingWorkerLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Preferred staff'**
+  String get clientBookingWorkerLabel;
+
+  /// No description provided for @noPreferenceOption.
+  ///
+  /// In en, this message translates to:
+  /// **'No preference'**
+  String get noPreferenceOption;
+
+  /// No description provided for @statusBookingRejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Booking request declined: {reason}'**
+  String statusBookingRejected(String reason);
+
+  /// No description provided for @availabilityReasonUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Not available'**
+  String get availabilityReasonUnknown;
+
+  /// No description provided for @availabilityReasonOutOfSchedule.
+  ///
+  /// In en, this message translates to:
+  /// **'Outside operating hours'**
+  String get availabilityReasonOutOfSchedule;
+
+  /// No description provided for @availabilityReasonMachineBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Resource is down for maintenance'**
+  String get availabilityReasonMachineBusy;
+
+  /// No description provided for @availabilityReasonResourceBooked.
+  ///
+  /// In en, this message translates to:
+  /// **'Resource is already booked'**
+  String get availabilityReasonResourceBooked;
+
+  /// No description provided for @availabilityReasonWorkerBusy.
+  ///
+  /// In en, this message translates to:
+  /// **'Staff member is already booked'**
+  String get availabilityReasonWorkerBusy;
+
+  /// No description provided for @workerActiveLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get workerActiveLabel;
 }
 
 class _AppLocalizationsDelegate

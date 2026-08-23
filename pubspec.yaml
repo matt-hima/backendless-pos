@@ -26,3 +26,4 @@ flutter:
   generate: true
   assets:
     - assets/sample_products/
+    - assets/hero/
