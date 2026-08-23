@@ -33,7 +33,6 @@
   "accountAdvancedOptionsLink": "詳細オプション",
   "accountMismatchError": "その携帯電話番号と生年月日はこの端末のアカウントと一致しません。別の方法でログインするには「詳細オプション」をご利用ください。",
   "accountSignInButton": "ログイン",
-  "accountSignInTooltip": "ログイン",
 
   "createPassphraseTitle": "アカウントを作成する",
   "createPassphraseHint": "パスフレーズを作成してください（8文字以上）。復元はできません。",
@@ -75,9 +74,10 @@
   "accountGateBody": "アカウントが店舗管理の鍵になります。ローカルアカウントは暗号化されたキーストアとして保存され、パスフレーズで保護されます。",
 
   "chatTooltip": "サポートとチャットする",
-  "portalTooltip": "店舗管理",
   "chatWithSupportTitle": "サポートとチャット",
   "messageSupportHint": "サポートにメッセージを送る",
+  "memberZoneTooltip": "会員専用ページ",
+  "memberZoneTitle": "会員専用ページ",
 
   "clientMenuTitle": "単品メニュー",
   "clientMenuSubtitle": "チャンネル：{channel} ・ 料理をタップすると詳細を確認し、注文に追加できます",

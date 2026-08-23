@@ -33,7 +33,6 @@
   "accountAdvancedOptionsLink": "Opciones avanzadas",
   "accountMismatchError": "Ese número de móvil y fecha de nacimiento no coinciden con la cuenta de este dispositivo. Use Opciones avanzadas para iniciar sesión de otra forma.",
   "accountSignInButton": "Iniciar sesión",
-  "accountSignInTooltip": "Iniciar sesión",
 
   "createPassphraseTitle": "Crear cuenta",
   "createPassphraseHint": "Cree una contraseña (8+ caracteres). No se puede recuperar.",
@@ -75,9 +74,10 @@
   "accountGateBody": "Su cuenta es la llave del gestor de tienda. Las cuentas locales se almacenan como almacenes de claves cifrados protegidos por su contraseña.",
 
   "chatTooltip": "Chatear con soporte",
-  "portalTooltip": "Gestor de tienda",
   "chatWithSupportTitle": "Chat con soporte",
   "messageSupportHint": "Mensaje para soporte",
+  "memberZoneTooltip": "Zona de miembros",
+  "memberZoneTitle": "Zona de miembros",
 
   "clientMenuTitle": "Menú a la carta",
   "clientMenuSubtitle": "Canal: {channel} · Toque un plato para ver los detalles y añadirlo a su pedido",

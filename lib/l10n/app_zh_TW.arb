@@ -33,7 +33,6 @@
   "accountAdvancedOptionsLink": "進階選項",
   "accountMismatchError": "此手機號碼與生日和這台裝置上的帳戶不符。請使用「進階選項」以其他方式登入。",
   "accountSignInButton": "登入",
-  "accountSignInTooltip": "登入",
 
   "createPassphraseTitle": "建立帳戶",
   "createPassphraseHint": "建立密碼（至少 8 個字元）。此密碼無法復原。",
@@ -75,9 +74,10 @@
   "accountGateBody": "您的帳戶就是門市管理的存取金鑰。本機帳戶會以加密金鑰庫儲存，並由您的密碼保護。",
 
   "chatTooltip": "與客服聊天",
-  "portalTooltip": "門市管理",
   "chatWithSupportTitle": "與客服聊天",
   "messageSupportHint": "傳訊給客服",
+  "memberZoneTooltip": "會員專區",
+  "memberZoneTitle": "會員專區",
 
   "clientMenuTitle": "單點菜單",
   "clientMenuSubtitle": "頻道：{channel} · 點選菜色查看詳情，加入您的訂單",

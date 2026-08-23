@@ -279,12 +279,6 @@ abstract class AppLocalizations {
   /// **'Sign in'**
   String get accountSignInButton;
 
-  /// No description provided for @accountSignInTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Sign in'**
-  String get accountSignInTooltip;
-
   /// No description provided for @createPassphraseTitle.
   ///
   /// In en, this message translates to:
@@ -483,12 +477,6 @@ abstract class AppLocalizations {
   /// **'Chat with support'**
   String get chatTooltip;
 
-  /// No description provided for @portalTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Store manager'**
-  String get portalTooltip;
-
   /// No description provided for @chatWithSupportTitle.
   ///
   /// In en, this message translates to:
@@ -500,6 +488,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Message support'**
   String get messageSupportHint;
+
+  /// No description provided for @memberZoneTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Member zone'**
+  String get memberZoneTooltip;
+
+  /// No description provided for @memberZoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Member zone'**
+  String get memberZoneTitle;
 
   /// No description provided for @clientMenuTitle.
   ///

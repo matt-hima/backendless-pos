@@ -102,9 +102,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accountSignInButton => 'Sign in';
 
   @override
-  String get accountSignInTooltip => 'Sign in';
-
-  @override
   String get createPassphraseTitle => 'Create account';
 
   @override
@@ -211,13 +208,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatTooltip => 'Chat with support';
 
   @override
-  String get portalTooltip => 'Store manager';
-
-  @override
   String get chatWithSupportTitle => 'Chat with support';
 
   @override
   String get messageSupportHint => 'Message support';
+
+  @override
+  String get memberZoneTooltip => 'Member zone';
+
+  @override
+  String get memberZoneTitle => 'Member zone';
 
   @override
   String get clientMenuTitle => 'À la carte menu';

@@ -99,9 +99,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get accountSignInButton => '登入';
 
   @override
-  String get accountSignInTooltip => '登入';
-
-  @override
   String get createPassphraseTitle => '建立帳戶';
 
   @override
@@ -202,13 +199,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatTooltip => '與客服聊天';
 
   @override
-  String get portalTooltip => '門市管理';
-
-  @override
   String get chatWithSupportTitle => '與客服聊天';
 
   @override
   String get messageSupportHint => '傳訊給客服';
+
+  @override
+  String get memberZoneTooltip => '會員專區';
+
+  @override
+  String get memberZoneTitle => '會員專區';
 
   @override
   String get clientMenuTitle => '單點菜單';
@@ -1002,9 +1002,6 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get accountSignInButton => '登入';
 
   @override
-  String get accountSignInTooltip => '登入';
-
-  @override
   String get createPassphraseTitle => '建立帳戶';
 
   @override
@@ -1105,13 +1102,16 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get chatTooltip => '與客服聊天';
 
   @override
-  String get portalTooltip => '門市管理';
-
-  @override
   String get chatWithSupportTitle => '與客服聊天';
 
   @override
   String get messageSupportHint => '傳訊給客服';
+
+  @override
+  String get memberZoneTooltip => '會員專區';
+
+  @override
+  String get memberZoneTitle => '會員專區';
 
   @override
   String get clientMenuTitle => '單點菜單';

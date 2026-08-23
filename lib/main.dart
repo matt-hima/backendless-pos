@@ -1642,7 +1642,42 @@ class _LilyGoAppState extends State<LilyGoApp> {
   @override
   Widget build(BuildContext context) => MaterialApp(
         onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
-        theme: ThemeData(colorSchemeSeed: Colors.indigo, useMaterial3: true),
+        theme: ThemeData(
+          useMaterial3: true,
+          scaffoldBackgroundColor: const Color(0xFFF7F9FC),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF3F7FC7),
+            primary: const Color(0xFF2A5A92),
+            secondary: const Color(0xFF3F7FC7),
+            surface: Colors.white,
+            surfaceContainerHighest: const Color(0xFFF0F3F7),
+          ),
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Color(0xFF173D72),
+            foregroundColor: Colors.white,
+            elevation: 0,
+            centerTitle: false,
+          ),
+          cardTheme: CardThemeData(
+            color: Colors.white,
+            elevation: 0,
+            margin: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(4),
+              side: const BorderSide(color: Color(0xFFD9E0E8)),
+            ),
+          ),
+          dividerTheme: const DividerThemeData(
+            color: Color(0xFFD9E0E8), thickness: 1, space: 1),
+          inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(3),
+              borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+            ),
+          ),
+        ),
         navigatorKey: navigatorKey,
         initialRoute: Uri.base.path == '/portal' ? '/portal' : '/',
         routes: {'/': (_) => _clientHome(), '/portal': (_) => _portal()},
@@ -1659,7 +1694,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
           .add(product);
     }
     return Scaffold(
-      appBar: AppBar(title: Text(l.appTitle), actions: [
+      appBar: AppBar(title: _BrandTitle(l.appTitle), actions: [
         Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Chip(label: Text(activeChannel))),
@@ -1874,7 +1909,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
     final l = _l;
     final context = navigatorKey.currentContext!;
     return Scaffold(
-      appBar: AppBar(title: Text(l.portalLoginTitle)),
+      appBar: AppBar(title: _BrandTitle(l.portalLoginTitle)),
       body: Center(
         child: Card(
           child: Padding(
@@ -1958,7 +1993,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
         final controller = DefaultTabController.of(tabContext);
         final destinations = sections.map((s) => (s.$1, s.$2)).toList();
         return Scaffold(
-          appBar: AppBar(title: Text(l.appTitle), actions: [
+          appBar: AppBar(title: _BrandTitle(l.appTitle), actions: [
             if (walletAddress == 'demo-mode') ...[
               Chip(
                   label: Text(l.demoModeBannerText),
@@ -1997,13 +2032,23 @@ class _LilyGoAppState extends State<LilyGoApp> {
                 icon: const Icon(Icons.refresh),
                 tooltip: l.refreshTooltip)
           ]),
-          body: Row(children: [
+          body: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Material(
-              color: Theme.of(tabContext).colorScheme.surfaceContainerHighest,
+              color: Colors.white,
               child: SizedBox(
-                width: 236,
+                width: 252,
                 child: Column(children: [
-                  const SizedBox(height: 18),
+                  Container(
+                    width: double.infinity,
+                    color: const Color(0xFF3F7FC7),
+                    padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
+                    child: Text(l.salesWorkspaceTitle.toUpperCase(),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.1)),
+                  ),
                   ListTile(
                       leading: const Icon(Icons.storefront_outlined),
                       title: Text(l.salesWorkspaceTitle),
@@ -2019,10 +2064,14 @@ class _LilyGoAppState extends State<LilyGoApp> {
                           padding: const EdgeInsets.only(bottom: 4),
                           child: ListTile(
                             selected: portalSection == index,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                            leading: Icon(item.$1),
-                            title: Text(item.$2),
+                            selectedTileColor: const Color(0xFFE8F1FB),
+                            shape: const RoundedRectangleBorder(),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                            leading: Icon(item.$1, size: 20),
+                            title: Text(item.$2,
+                                style: TextStyle(fontSize: 13,
+                                    fontWeight: portalSection == index
+                                        ? FontWeight.w700 : FontWeight.w500)),
                             onTap: () {
                               setState(() => portalSection = index);
                               controller.animateTo(index);
@@ -2555,7 +2604,7 @@ class _Page extends StatelessWidget {
   final double padding;
   @override
   Widget build(BuildContext c) => SingleChildScrollView(
-      padding: EdgeInsets.all(padding),
+      padding: EdgeInsets.fromLTRB(padding, padding - 4, padding, padding),
       child: Column(
           crossAxisAlignment: CrossAxisAlignment.start, children: children));
 }
@@ -2566,8 +2615,11 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext c) =>
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title, style: Theme.of(c).textTheme.headlineSmall),
-        Text(subtitle, style: Theme.of(c).textTheme.bodySmall)
+        Text(title, style: Theme.of(c).textTheme.headlineSmall?.copyWith(
+            color: const Color(0xFF173D72), fontWeight: FontWeight.w700)),
+        const SizedBox(height: 4),
+        Text(subtitle, style: Theme.of(c).textTheme.bodySmall?.copyWith(
+            color: const Color(0xFF667085)))
       ]);
 }
 
@@ -2577,18 +2629,35 @@ class _Metric extends StatelessWidget {
   final IconData icon;
   @override
   Widget build(BuildContext c) => SizedBox(
-      width: 190,
+      width: 205,
       child: Card(
           child: Padding(
               padding: const EdgeInsets.all(18),
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(icon),
+                    Icon(icon, color: const Color(0xFF3F7FC7), size: 22),
                     const SizedBox(height: 12),
-                    Text(value, style: Theme.of(c).textTheme.headlineMedium),
-                    Text(label)
+                    Text(value, style: Theme.of(c).textTheme.headlineMedium?.copyWith(
+                        color: const Color(0xFF173D72), fontWeight: FontWeight.w700)),
+                    Text(label, style: const TextStyle(color: Color(0xFF667085), fontSize: 12))
                   ]))));
+}
+
+class _BrandTitle extends StatelessWidget {
+  const _BrandTitle(this.title);
+  final String title;
+  @override
+  Widget build(BuildContext context) => Row(children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(3)),
+          child: const Text('LILYGO', style: TextStyle(
+              color: Color(0xFF173D72), fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 1.4)),
+        ),
+        const SizedBox(width: 12),
+        Text(title),
+      ]);
 }
 
 class _DataTable extends StatelessWidget {

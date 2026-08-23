@@ -36,7 +36,6 @@
   "accountAdvancedOptionsLink": "Advanced options",
   "accountMismatchError": "That mobile number and birthday don't match this device's account. Use Advanced options to sign in a different way.",
   "accountSignInButton": "Sign in",
-  "accountSignInTooltip": "Sign in",
 
   "createPassphraseTitle": "Create account",
   "createPassphraseHint": "Create a passphrase (8+ characters). It cannot be recovered.",
@@ -78,9 +77,10 @@
   "accountGateBody": "Your account is the store manager key. Local accounts are stored as encrypted keystores protected by your passphrase.",
 
   "chatTooltip": "Chat with support",
-  "portalTooltip": "Store manager",
   "chatWithSupportTitle": "Chat with support",
   "messageSupportHint": "Message support",
+  "memberZoneTooltip": "Member zone",
+  "memberZoneTitle": "Member zone",
 
   "clientMenuTitle": "À la carte menu",
   "clientMenuSubtitle": "Channel: {channel} · Tap a dish to see details and add it to your order",
