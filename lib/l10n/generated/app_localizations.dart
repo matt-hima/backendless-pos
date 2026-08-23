@@ -1730,6 +1730,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Role removed'**
   String get statusRoleRevoked;
+
+  /// No description provided for @navDatabase.
+  ///
+  /// In en, this message translates to:
+  /// **'Database'**
+  String get navDatabase;
+
+  /// No description provided for @databaseSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Database'**
+  String get databaseSectionTitle;
+
+  /// No description provided for @databaseSectionSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse tables and run queries against this device\'s local database'**
+  String get databaseSectionSubtitle;
+
+  /// No description provided for @sqlQueryLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'SQL query'**
+  String get sqlQueryLabel;
+
+  /// No description provided for @sqlQueryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'SELECT * FROM erp.llx_product'**
+  String get sqlQueryHint;
+
+  /// No description provided for @runQueryButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Run'**
+  String get runQueryButton;
+
+  /// No description provided for @queryEmptyResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Query returned no rows.'**
+  String get queryEmptyResult;
+
+  /// No description provided for @tablesSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tables'**
+  String get tablesSectionTitle;
+
+  /// No description provided for @clearTableButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear table'**
+  String get clearTableButton;
+
+  /// No description provided for @clearTableConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear {table}?'**
+  String clearTableConfirmTitle(String table);
+
+  /// No description provided for @clearTableConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This permanently deletes every row in this table. This cannot be undone.'**
+  String get clearTableConfirmBody;
+
+  /// No description provided for @statusQueryExecuted.
+  ///
+  /// In en, this message translates to:
+  /// **'Query executed'**
+  String get statusQueryExecuted;
 }
 
 class _AppLocalizationsDelegate

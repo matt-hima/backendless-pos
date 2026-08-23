@@ -542,7 +542,7 @@ class DatabaseService {
     return permissionRows.map((r) => r['permission'].toString()).toSet();
   }
 
-  static const _dumpTables = [
+  static const allTables = [
     'erp.llx_societe', 'erp.llx_socpeople', 'erp.llx_commande', 'erp.llx_product', 'erp.llx_commandedet',
     'erp.llx_product_lang', 'chat.rc_rooms', 'chat.rc_subscriptions', 'chat.rc_messages',
     'cms.collections', 'cms.fields', 'cms.items',
@@ -553,14 +553,14 @@ class DatabaseService {
 
   Future<Map<String, dynamic>> dumpAll() async {
     final dump = <String, dynamic>{};
-    for (final table in _dumpTables) {
+    for (final table in allTables) {
       dump[table] = await rows('SELECT * FROM $table');
     }
     return dump;
   }
 
   Future<void> restoreAll(Map<String, dynamic> dump) async {
-    for (final table in _dumpTables) {
+    for (final table in allTables) {
       await execute('DELETE FROM $table;');
       final tableRows = (dump[table] as List? ?? const []);
       for (final row in tableRows) {
@@ -573,9 +573,23 @@ class DatabaseService {
   }
 
   Future<void> resetAll() async {
-    for (final table in _dumpTables) {
+    for (final table in allTables) {
       await execute('DELETE FROM $table;');
     }
+  }
+
+  Future<List<Map<String, dynamic>>> tableCounts() async {
+    final counts = <Map<String, dynamic>>[];
+    for (final table in allTables) {
+      final count = await _queryScalar('SELECT COUNT(*) FROM $table');
+      counts.add({'table': table, 'count': int.tryParse(count) ?? 0});
+    }
+    return counts;
+  }
+
+  Future<void> clearTable(String table) async {
+    if (!allTables.contains(table)) throw ArgumentError('Unknown table: $table');
+    await execute('DELETE FROM $table;');
   }
 
   String _sqlValue(dynamic value) {

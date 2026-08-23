@@ -304,5 +304,18 @@
   "newRoleButton": "Nuevo rol",
   "roleNameFieldLabel": "Nombre del rol",
   "statusRoleGranted": "Rol otorgado",
-  "statusRoleRevoked": "Rol eliminado"
+  "statusRoleRevoked": "Rol eliminado",
+
+  "navDatabase": "Base de datos",
+  "databaseSectionTitle": "Base de datos",
+  "databaseSectionSubtitle": "Explore las tablas y ejecute consultas en la base de datos local de este dispositivo",
+  "sqlQueryLabel": "Consulta SQL",
+  "sqlQueryHint": "SELECT * FROM erp.llx_product",
+  "runQueryButton": "Ejecutar",
+  "queryEmptyResult": "La consulta no devolvió filas.",
+  "tablesSectionTitle": "Tablas",
+  "clearTableButton": "Vaciar tabla",
+  "clearTableConfirmTitle": "¿Vaciar {table}?",
+  "clearTableConfirmBody": "Esto elimina permanentemente todas las filas de esta tabla. Esta acción no se puede deshacer.",
+  "statusQueryExecuted": "Consulta ejecutada"
 }

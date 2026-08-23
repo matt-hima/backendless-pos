@@ -938,4 +938,44 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get statusRoleRevoked => 'Função removida';
+
+  @override
+  String get navDatabase => 'Base de dados';
+
+  @override
+  String get databaseSectionTitle => 'Base de dados';
+
+  @override
+  String get databaseSectionSubtitle =>
+      'Explore as tabelas e execute consultas na base de dados local deste dispositivo';
+
+  @override
+  String get sqlQueryLabel => 'Consulta SQL';
+
+  @override
+  String get sqlQueryHint => 'SELECT * FROM erp.llx_product';
+
+  @override
+  String get runQueryButton => 'Executar';
+
+  @override
+  String get queryEmptyResult => 'A consulta não devolveu linhas.';
+
+  @override
+  String get tablesSectionTitle => 'Tabelas';
+
+  @override
+  String get clearTableButton => 'Limpar tabela';
+
+  @override
+  String clearTableConfirmTitle(String table) {
+    return 'Limpar $table?';
+  }
+
+  @override
+  String get clearTableConfirmBody =>
+      'Isto elimina permanentemente todas as linhas desta tabela. Esta ação não pode ser desfeita.';
+
+  @override
+  String get statusQueryExecuted => 'Consulta executada';
 }

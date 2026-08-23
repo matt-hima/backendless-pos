@@ -939,4 +939,44 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get statusRoleRevoked => 'Rol eliminado';
+
+  @override
+  String get navDatabase => 'Base de datos';
+
+  @override
+  String get databaseSectionTitle => 'Base de datos';
+
+  @override
+  String get databaseSectionSubtitle =>
+      'Explore las tablas y ejecute consultas en la base de datos local de este dispositivo';
+
+  @override
+  String get sqlQueryLabel => 'Consulta SQL';
+
+  @override
+  String get sqlQueryHint => 'SELECT * FROM erp.llx_product';
+
+  @override
+  String get runQueryButton => 'Ejecutar';
+
+  @override
+  String get queryEmptyResult => 'La consulta no devolvió filas.';
+
+  @override
+  String get tablesSectionTitle => 'Tablas';
+
+  @override
+  String get clearTableButton => 'Vaciar tabla';
+
+  @override
+  String clearTableConfirmTitle(String table) {
+    return '¿Vaciar $table?';
+  }
+
+  @override
+  String get clearTableConfirmBody =>
+      'Esto elimina permanentemente todas las filas de esta tabla. Esta acción no se puede deshacer.';
+
+  @override
+  String get statusQueryExecuted => 'Consulta ejecutada';
 }

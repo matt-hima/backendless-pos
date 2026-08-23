@@ -905,6 +905,44 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get statusRoleRevoked => '已移除角色';
+
+  @override
+  String get navDatabase => '資料庫';
+
+  @override
+  String get databaseSectionTitle => '資料庫';
+
+  @override
+  String get databaseSectionSubtitle => '瀏覽這台裝置本機資料庫的資料表，並執行查詢';
+
+  @override
+  String get sqlQueryLabel => 'SQL 查詢';
+
+  @override
+  String get sqlQueryHint => 'SELECT * FROM erp.llx_product';
+
+  @override
+  String get runQueryButton => '執行';
+
+  @override
+  String get queryEmptyResult => '查詢沒有回傳任何資料。';
+
+  @override
+  String get tablesSectionTitle => '資料表';
+
+  @override
+  String get clearTableButton => '清空資料表';
+
+  @override
+  String clearTableConfirmTitle(String table) {
+    return '要清空 $table 嗎？';
+  }
+
+  @override
+  String get clearTableConfirmBody => '這將永久刪除此資料表中的所有資料。此操作無法復原。';
+
+  @override
+  String get statusQueryExecuted => '查詢已執行';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -1808,4 +1846,42 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get statusRoleRevoked => '已移除角色';
+
+  @override
+  String get navDatabase => '資料庫';
+
+  @override
+  String get databaseSectionTitle => '資料庫';
+
+  @override
+  String get databaseSectionSubtitle => '瀏覽這台裝置本機資料庫的資料表，並執行查詢';
+
+  @override
+  String get sqlQueryLabel => 'SQL 查詢';
+
+  @override
+  String get sqlQueryHint => 'SELECT * FROM erp.llx_product';
+
+  @override
+  String get runQueryButton => '執行';
+
+  @override
+  String get queryEmptyResult => '查詢沒有回傳任何資料。';
+
+  @override
+  String get tablesSectionTitle => '資料表';
+
+  @override
+  String get clearTableButton => '清空資料表';
+
+  @override
+  String clearTableConfirmTitle(String table) {
+    return '要清空 $table 嗎？';
+  }
+
+  @override
+  String get clearTableConfirmBody => '這將永久刪除此資料表中的所有資料。此操作無法復原。';
+
+  @override
+  String get statusQueryExecuted => '查詢已執行';
 }

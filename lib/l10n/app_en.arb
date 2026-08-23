@@ -421,5 +421,21 @@
   "newRoleButton": "New role",
   "roleNameFieldLabel": "Role name",
   "statusRoleGranted": "Role granted",
-  "statusRoleRevoked": "Role removed"
+  "statusRoleRevoked": "Role removed",
+
+  "navDatabase": "Database",
+  "databaseSectionTitle": "Database",
+  "databaseSectionSubtitle": "Browse tables and run queries against this device's local database",
+  "sqlQueryLabel": "SQL query",
+  "sqlQueryHint": "SELECT * FROM erp.llx_product",
+  "runQueryButton": "Run",
+  "queryEmptyResult": "Query returned no rows.",
+  "tablesSectionTitle": "Tables",
+  "clearTableButton": "Clear table",
+  "clearTableConfirmTitle": "Clear {table}?",
+  "@clearTableConfirmTitle": {
+    "placeholders": { "table": {"type": "String"} }
+  },
+  "clearTableConfirmBody": "This permanently deletes every row in this table. This cannot be undone.",
+  "statusQueryExecuted": "Query executed"
 }

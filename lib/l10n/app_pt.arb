@@ -304,5 +304,18 @@
   "newRoleButton": "Nova função",
   "roleNameFieldLabel": "Nome da função",
   "statusRoleGranted": "Função atribuída",
-  "statusRoleRevoked": "Função removida"
+  "statusRoleRevoked": "Função removida",
+
+  "navDatabase": "Base de dados",
+  "databaseSectionTitle": "Base de dados",
+  "databaseSectionSubtitle": "Explore as tabelas e execute consultas na base de dados local deste dispositivo",
+  "sqlQueryLabel": "Consulta SQL",
+  "sqlQueryHint": "SELECT * FROM erp.llx_product",
+  "runQueryButton": "Executar",
+  "queryEmptyResult": "A consulta não devolveu linhas.",
+  "tablesSectionTitle": "Tabelas",
+  "clearTableButton": "Limpar tabela",
+  "clearTableConfirmTitle": "Limpar {table}?",
+  "clearTableConfirmBody": "Isto elimina permanentemente todas as linhas desta tabela. Esta ação não pode ser desfeita.",
+  "statusQueryExecuted": "Consulta executada"
 }

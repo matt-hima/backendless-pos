@@ -916,4 +916,42 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get statusRoleRevoked => 'ロールを削除しました';
+
+  @override
+  String get navDatabase => 'データベース';
+
+  @override
+  String get databaseSectionTitle => 'データベース';
+
+  @override
+  String get databaseSectionSubtitle => 'この端末のローカルデータベースのテーブルを閲覧し、クエリを実行します';
+
+  @override
+  String get sqlQueryLabel => 'SQLクエリ';
+
+  @override
+  String get sqlQueryHint => 'SELECT * FROM erp.llx_product';
+
+  @override
+  String get runQueryButton => '実行';
+
+  @override
+  String get queryEmptyResult => 'クエリの結果は0件でした。';
+
+  @override
+  String get tablesSectionTitle => 'テーブル';
+
+  @override
+  String get clearTableButton => 'テーブルを空にする';
+
+  @override
+  String clearTableConfirmTitle(String table) {
+    return '$table を空にしますか？';
+  }
+
+  @override
+  String get clearTableConfirmBody => 'このテーブルのすべての行が完全に削除されます。この操作は取り消せません。';
+
+  @override
+  String get statusQueryExecuted => 'クエリを実行しました';
 }

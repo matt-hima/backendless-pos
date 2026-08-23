@@ -927,4 +927,44 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statusRoleRevoked => 'Role removed';
+
+  @override
+  String get navDatabase => 'Database';
+
+  @override
+  String get databaseSectionTitle => 'Database';
+
+  @override
+  String get databaseSectionSubtitle =>
+      'Browse tables and run queries against this device\'s local database';
+
+  @override
+  String get sqlQueryLabel => 'SQL query';
+
+  @override
+  String get sqlQueryHint => 'SELECT * FROM erp.llx_product';
+
+  @override
+  String get runQueryButton => 'Run';
+
+  @override
+  String get queryEmptyResult => 'Query returned no rows.';
+
+  @override
+  String get tablesSectionTitle => 'Tables';
+
+  @override
+  String get clearTableButton => 'Clear table';
+
+  @override
+  String clearTableConfirmTitle(String table) {
+    return 'Clear $table?';
+  }
+
+  @override
+  String get clearTableConfirmBody =>
+      'This permanently deletes every row in this table. This cannot be undone.';
+
+  @override
+  String get statusQueryExecuted => 'Query executed';
 }

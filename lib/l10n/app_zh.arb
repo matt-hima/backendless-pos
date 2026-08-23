@@ -271,5 +271,17 @@
   "newRoleButton": "新增角色",
   "roleNameFieldLabel": "角色名稱",
   "statusRoleGranted": "已授予角色",
-  "statusRoleRevoked": "已移除角色"
+  "statusRoleRevoked": "已移除角色",
+  "navDatabase": "資料庫",
+  "databaseSectionTitle": "資料庫",
+  "databaseSectionSubtitle": "瀏覽這台裝置本機資料庫的資料表，並執行查詢",
+  "sqlQueryLabel": "SQL 查詢",
+  "sqlQueryHint": "SELECT * FROM erp.llx_product",
+  "runQueryButton": "執行",
+  "queryEmptyResult": "查詢沒有回傳任何資料。",
+  "tablesSectionTitle": "資料表",
+  "clearTableButton": "清空資料表",
+  "clearTableConfirmTitle": "要清空 {table} 嗎？",
+  "clearTableConfirmBody": "這將永久刪除此資料表中的所有資料。此操作無法復原。",
+  "statusQueryExecuted": "查詢已執行"
 }

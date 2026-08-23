@@ -304,5 +304,18 @@
   "newRoleButton": "新しいロール",
   "roleNameFieldLabel": "ロール名",
   "statusRoleGranted": "ロールを付与しました",
-  "statusRoleRevoked": "ロールを削除しました"
+  "statusRoleRevoked": "ロールを削除しました",
+
+  "navDatabase": "データベース",
+  "databaseSectionTitle": "データベース",
+  "databaseSectionSubtitle": "この端末のローカルデータベースのテーブルを閲覧し、クエリを実行します",
+  "sqlQueryLabel": "SQLクエリ",
+  "sqlQueryHint": "SELECT * FROM erp.llx_product",
+  "runQueryButton": "実行",
+  "queryEmptyResult": "クエリの結果は0件でした。",
+  "tablesSectionTitle": "テーブル",
+  "clearTableButton": "テーブルを空にする",
+  "clearTableConfirmTitle": "{table} を空にしますか？",
+  "clearTableConfirmBody": "このテーブルのすべての行が完全に削除されます。この操作は取り消せません。",
+  "statusQueryExecuted": "クエリを実行しました"
 }

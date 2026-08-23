@@ -126,6 +126,9 @@ class _LilyGoAppState extends State<LilyGoApp> {
   Set<String> myPermissions = {};
   List<Map<String, dynamic>> iamUsersList = [];
   List<Map<String, dynamic>> iamRolesList = [];
+  List<Map<String, dynamic>> dbTableCounts = [];
+  List<Map<String, dynamic>>? dbQueryResult;
+  String? dbQueryError;
 
   AppLocalizations get _l => AppLocalizations.of(navigatorKey.currentContext!);
 
@@ -220,6 +223,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
       await _refreshLoyalty();
       await _refreshBookings();
       await _refreshIam();
+      await _refreshDbManagement();
       if (mounted) setState(() => status = _l.statusReadyMessage);
     } catch (error) {
       if (mounted) setState(() => status = _l.statusStartupError(error.toString()));
@@ -306,12 +310,6 @@ class _LilyGoAppState extends State<LilyGoApp> {
     if (mounted) setState(() => status = _l.statusMenuLoaded(dintaifungMenu.length));
   }
 
-  Future<void> _openPortal() async {
-    if (walletAddress == null) await _connectWallet();
-    if (walletAddress == null) return;
-    await _start();
-    if (mounted) navigatorKey.currentState!.pushNamed('/portal');
-  }
 
   Future<void> _connectWallet() async {
     try {
@@ -1141,6 +1139,62 @@ class _LilyGoAppState extends State<LilyGoApp> {
       });
   }
 
+  Future<void> _refreshDbManagement() async {
+    final counts = await db.tableCounts();
+    if (mounted) setState(() => dbTableCounts = counts);
+  }
+
+  Future<void> _clearDbTable(String table) async {
+    final l = _l;
+    final confirmed = await showDialog<bool>(
+        context: navigatorKey.currentContext!,
+        builder: (dialogContext) => AlertDialog(
+              title: Text(l.clearTableConfirmTitle(table)),
+              content: Text(l.clearTableConfirmBody),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, false),
+                    child: Text(l.cancelButton)),
+                FilledButton(
+                    onPressed: () => Navigator.pop(dialogContext, true),
+                    child: Text(l.clearTableButton))
+              ],
+            ));
+    if (confirmed != true) return;
+    await db.clearTable(table);
+    await _refreshDbManagement();
+  }
+
+  Future<void> _runDbQuery(String sql) async {
+    final trimmed = sql.trim();
+    if (trimmed.isEmpty) return;
+    try {
+      if (RegExp(r'^select', caseSensitive: false).hasMatch(trimmed)) {
+        final result = await db.rows(trimmed);
+        if (mounted)
+          setState(() {
+            dbQueryResult = result;
+            dbQueryError = null;
+          });
+      } else {
+        await db.execute(trimmed);
+        if (mounted)
+          setState(() {
+            dbQueryResult = null;
+            dbQueryError = null;
+          });
+        await _refreshDbManagement();
+        if (mounted) setState(() => status = _l.statusQueryExecuted);
+      }
+    } catch (error) {
+      if (mounted)
+        setState(() {
+          dbQueryResult = null;
+          dbQueryError = error.toString();
+        });
+    }
+  }
+
   Future<void> _addIamMember() async {
     final l = _l;
     final walletController = TextEditingController();
@@ -1384,6 +1438,39 @@ class _LilyGoAppState extends State<LilyGoApp> {
     });
     clientChatController.clear();
     await _loadClientChat();
+  }
+
+  Future<void> _openMemberZone() async {
+    if (walletAddress == null) {
+      await _connectWallet();
+      return;
+    }
+    final l = _l;
+    await showModalBottomSheet<void>(
+      context: navigatorKey.currentContext!,
+      builder: (sheetContext) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(l.memberZoneTitle, style: const TextStyle(fontWeight: FontWeight.bold))),
+          ListTile(
+              leading: const Icon(Icons.contact_page_outlined),
+              title: Text(l.preferencesButton),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _editPreferences();
+              }),
+          ListTile(
+              leading: const Icon(Icons.chat_bubble_outline),
+              title: Text(l.chatTooltip),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _openClientChat();
+              }),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
   }
 
   Future<void> _openClientChat() async {
@@ -1700,23 +1787,14 @@ class _LilyGoAppState extends State<LilyGoApp> {
             child: Chip(label: Text(activeChannel))),
         _connectionChip(),
         _languageSwitcher(),
-        if (walletAddress != null) ...[
+        if (walletAddress != null)
           Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Chip(label: Text(_shortWallet(walletAddress!)))),
-          IconButton(
-              onPressed: _openClientChat,
-              icon: const Icon(Icons.chat_bubble_outline),
-              tooltip: l.chatTooltip)
-        ] else
-          IconButton(
-              onPressed: _connectWallet,
-              icon: const Icon(Icons.account_balance_wallet_outlined),
-              tooltip: l.accountSignInTooltip),
         IconButton(
-            onPressed: _openPortal,
-            icon: const Icon(Icons.dashboard_outlined),
-            tooltip: l.portalTooltip)
+            onPressed: _openMemberZone,
+            icon: const Icon(Icons.badge_outlined),
+            tooltip: l.memberZoneTooltip)
       ]),
       body: !clientReady
           ? Center(
@@ -1984,6 +2062,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
       (Icons.loyalty_outlined, l.navLoyalty, 'loyalty.manage', _loyalty()),
       (Icons.event_seat_outlined, l.navBookings, 'bookings.manage', _bookings()),
       (Icons.admin_panel_settings_outlined, l.navAccessControl, 'settings.manage', _accessControl()),
+      (Icons.storage_outlined, l.navDatabase, 'settings.manage', _databaseManagement()),
     ];
     final sections = allSections.where((s) => myPermissions.contains(s.$3)).toList();
     final connectionIndex = sections.indexWhere((s) => s.$3 == 'connection.manage');
@@ -2575,6 +2654,75 @@ class _LilyGoAppState extends State<LilyGoApp> {
                 : IconButton(
                     onPressed: () => _createOrEditRole(role),
                     icon: const Icon(Icons.edit_outlined)),
+          ))),
+    ]);
+  }
+
+  Widget _databaseManagement() {
+    final l = _l;
+    final queryController = TextEditingController();
+    return _Page(children: [
+      _SectionTitle(l.databaseSectionTitle, l.databaseSectionSubtitle),
+      const SizedBox(height: 8),
+      Card(
+          child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l.sqlQueryLabel, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    TextField(
+                        controller: queryController,
+                        maxLines: 3,
+                        decoration: InputDecoration(
+                            hintText: l.sqlQueryHint, border: const OutlineInputBorder())),
+                    const SizedBox(height: 8),
+                    Align(
+                        alignment: Alignment.centerRight,
+                        child: FilledButton.icon(
+                            onPressed: () => _runDbQuery(queryController.text),
+                            icon: const Icon(Icons.play_arrow_outlined),
+                            label: Text(l.runQueryButton))),
+                    if (dbQueryError != null) ...[
+                      const SizedBox(height: 8),
+                      Text(dbQueryError!, style: TextStyle(color: Theme.of(navigatorKey.currentContext!).colorScheme.error)),
+                    ],
+                    if (dbQueryResult != null) ...[
+                      const SizedBox(height: 8),
+                      if (dbQueryResult!.isEmpty)
+                        Text(l.queryEmptyResult)
+                      else
+                        SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: DataTable(
+                                columns: dbQueryResult!.first.keys
+                                    .map((k) => DataColumn(label: Text(k)))
+                                    .toList(),
+                                rows: dbQueryResult!
+                                    .map((row) => DataRow(
+                                        cells: row.values
+                                            .map((v) => DataCell(Text('${v ?? ''}')))
+                                            .toList()))
+                                    .toList())),
+                    ],
+                  ]))),
+      const SizedBox(height: 24),
+      Text(l.tablesSectionTitle, style: Theme.of(navigatorKey.currentContext!).textTheme.headlineSmall),
+      const SizedBox(height: 8),
+      ...dbTableCounts.map((entry) => Card(
+          margin: const EdgeInsets.only(bottom: 6),
+          child: ListTile(
+            title: Text(entry['table'].toString()),
+            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+              Text('${entry['count']}'),
+              IconButton(
+                  onPressed: (entry['count'] as int) == 0
+                      ? null
+                      : () => _clearDbTable(entry['table'].toString()),
+                  icon: const Icon(Icons.delete_sweep_outlined),
+                  tooltip: l.clearTableButton),
+            ]),
           ))),
     ]);
   }
