@@ -1,98 +1,125 @@
-// WebRTC transport using Google's public STUN server. Signaling remains
-// copy/paste for now, so no external signaling service is required.
+// PeerJS transport. PeerJS brokers the initial WebRTC handshake; application
+// data continues directly over WebRTC data channels.
 (() => {
   let peer;
-  let channel;
-  let messageHandler;
+  let portalMode = false;
+  let portalPeerId = '';
+  let peerReady = false;
   let lastSeenMs = 0;
+  const connections = new Map();
+  const pending = new Map();
+  const incoming = [];
   const HEARTBEAT_MS = 5000;
   const STALE_AFTER_MS = 12000;
-  const incoming = [];
+  const PEER_OPTIONS = {
+    config: {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+      ],
+    },
+  };
 
-  const config = {iceServers: [{urls: 'stun:stun.l.google.com:19302'}]};
-
-  function waitForIceGathering() {
-    if (!peer || peer.iceGatheringState === 'complete') return Promise.resolve();
-    return new Promise((resolve) => {
-      const check = () => {
-        if (peer.iceGatheringState === 'complete') {
-          peer.removeEventListener('icegatheringstatechange', check);
-          resolve();
-        }
-      };
-      peer.addEventListener('icegatheringstatechange', check);
-      setTimeout(resolve, 5000);
-    });
+  function peerIdForChannel(channel) {
+    const safe = (channel || 'default').replace(/[^a-zA-Z0-9_-]/g, '_');
+    return `lilygo-merchant-${safe}`;
   }
 
-  function onChannelMessage(raw) {
+  function queueMessage(connection, raw) {
     lastSeenMs = Date.now();
     let envelope;
-    try { envelope = JSON.parse(raw); } catch (_) { envelope = null; }
+    if (typeof raw === 'string') {
+      try { envelope = JSON.parse(raw); } catch (_) { envelope = null; }
+    } else if (raw && typeof raw === 'object') {
+      envelope = raw;
+    }
     if (envelope && envelope.type === 'ping') {
-      if (channel?.readyState === 'open') channel.send(JSON.stringify({type: 'pong', ts: Date.now()}));
+      if (connection.open) connection.send(JSON.stringify({type: 'pong', ts: Date.now()}));
       return;
     }
     if (envelope && envelope.type === 'pong') return;
-    incoming.push(raw);
-    messageHandler?.(raw);
+    if (envelope && typeof envelope === 'object') envelope.__peer_id = connection.peer;
+    incoming.push(JSON.stringify(envelope ?? {type: 'raw', payload: raw}));
   }
 
-  function wireChannel(nextChannel) {
-    channel = nextChannel;
-    channel.onmessage = (message) => onChannelMessage(message.data);
-    channel.onopen = () => { lastSeenMs = Date.now(); };
+  function registerConnection(connection) {
+    connections.set(connection.peer, connection);
+    pending.set(connection.peer, pending.get(connection.peer) || []);
+    connection.on('open', () => {
+      lastSeenMs = Date.now();
+      if (!portalMode) connection.send(JSON.stringify({type: 'client_ready'}));
+      const queued = pending.get(connection.peer) || [];
+      pending.set(connection.peer, []);
+      for (const message of queued) connection.send(message);
+    });
+    connection.on('data', (raw) => queueMessage(connection, raw));
+    connection.on('close', () => { connections.delete(connection.peer); pending.delete(connection.peer); });
+    connection.on('error', () => { connections.delete(connection.peer); pending.delete(connection.peer); });
   }
 
-  function wirePeer(nextPeer) {
-    peer = nextPeer;
-    peer.onconnectionstatechange = () => window.dispatchEvent(new CustomEvent('webrtc-state', {detail: peer.connectionState}));
-    peer.ondatachannel = (event) => wireChannel(event.channel);
-  }
-
-  function info(description, role) {
-    return JSON.stringify({role, stun: 'stun:stun.l.google.com:19302', type: description.type, sdp: description.sdp});
+  function connectToPortal() {
+    if (portalMode || !peer || !portalPeerId) return;
+    const connection = peer.connect(portalPeerId, {reliable: true, label: 'merchant-room'});
+    registerConnection(connection);
   }
 
   setInterval(() => {
-    if (channel?.readyState === 'open') channel.send(JSON.stringify({type: 'ping', ts: Date.now()}));
+    for (const connection of connections.values()) {
+      if (connection.open) connection.send(JSON.stringify({type: 'ping', ts: Date.now()}));
+    }
   }, HEARTBEAT_MS);
 
   window.WebRtcBridge = {
-    async createOffer() {
-      const nextPeer = new RTCPeerConnection(config);
-      wirePeer(nextPeer);
-      wireChannel(nextPeer.createDataChannel('order-sync'));
-      await nextPeer.setLocalDescription(await nextPeer.createOffer());
-      await waitForIceGathering();
-      return info(nextPeer.localDescription, 'offer');
+    async initialize(isPortal, channel) {
+      portalMode = Boolean(isPortal);
+      portalPeerId = peerIdForChannel(channel);
+      if (peer) peer.destroy();
+      peerReady = false;
+      peer = portalMode
+        ? new Peer(portalPeerId, PEER_OPTIONS)
+        : new Peer(PEER_OPTIONS);
+      await new Promise((resolve, reject) => {
+        peer.on('open', () => { peerReady = true; lastSeenMs = Date.now(); resolve(); });
+        peer.on('error', reject);
+        peer.on('connection', registerConnection);
+      });
+      if (!portalMode) connectToPortal();
     },
-    async acceptOffer(offerJson) {
-      const offer = JSON.parse(offerJson);
-      const nextPeer = new RTCPeerConnection(config);
-      wirePeer(nextPeer);
-      await nextPeer.setRemoteDescription(offer);
-      await nextPeer.setLocalDescription(await nextPeer.createAnswer());
-      await waitForIceGathering();
-      return info(nextPeer.localDescription, 'answer');
-    },
-    async applyAnswer(answerJson) {
-      await peer.setRemoteDescription(JSON.parse(answerJson));
-      return peer.connectionState;
-    },
+    // Retained for compatibility with the old manual-signaling UI.
+    async createOffer() { throw new Error('PeerJS connects through the merchant channel'); },
+    async acceptOffer() { throw new Error('PeerJS connects through the merchant channel'); },
+    async applyAnswer() { throw new Error('PeerJS connects through the merchant channel'); },
     send(message) {
-      if (channel?.readyState !== 'open') throw new Error('WebRTC data channel is not open');
-      channel.send(message);
+      const envelope = JSON.parse(message);
+      const target = envelope.__target_peer_id;
+      delete envelope.__target_peer_id;
+      const encoded = JSON.stringify(envelope);
+      if (target) {
+        const connection = connections.get(target);
+        if (connection?.open) connection.send(encoded);
+        else if (connection) pending.get(target).push(encoded);
+        return;
+      }
+      for (const connection of connections.values()) {
+        if (connection.open) connection.send(encoded);
+        else pending.get(connection.peer).push(encoded);
+      }
     },
-    onMessage(callback) { messageHandler = callback; },
+    state() {
+      return connections.size > 0 ? 'connected' : (peer ? 'connecting' : 'new');
+    },
+    status() {
+      const open = [...connections.values()].some((connection) => connection.open);
+      if (!peer) return 'disconnected';
+      if (!peerReady) return 'connecting';
+      if (!open) return portalMode ? 'open' : 'connecting';
+      return (Date.now() - lastSeenMs) <= STALE_AFTER_MS ? 'connected' : 'stale';
+    },
+    connectionCount() {
+      return [...connections.values()].filter((connection) => connection.open).length;
+    },
     drainMessages() {
       const drained = incoming.splice(0, incoming.length);
       return JSON.stringify(drained);
-    },
-    state() { return peer?.connectionState ?? 'new'; },
-    status() {
-      if (channel?.readyState !== 'open') return peer ? 'connecting' : 'disconnected';
-      return (Date.now() - lastSeenMs) <= STALE_AFTER_MS ? 'connected' : 'stale';
     },
   };
 })();

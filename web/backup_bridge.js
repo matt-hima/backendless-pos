@@ -1,6 +1,9 @@
 window.BackupBridge = {
   downloadJson(filename, jsonString) {
-    const blob = new Blob([jsonString], {type: 'application/json'});
+    this.downloadText(filename, jsonString, 'application/json');
+  },
+  downloadText(filename, content, mimeType) {
+    const blob = new Blob([content], {type: mimeType});
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;

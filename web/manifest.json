@@ -1,0 +1,17 @@
+{
+  "name": "LilyGO ERP",
+  "short_name": "LilyGO ERP",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f7fa",
+  "theme_color": "#0b4f71",
+  "description": "Offline-first LilyGO ERP order screen",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

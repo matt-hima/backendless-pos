@@ -230,6 +230,127 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
+  String get installAppTitle => 'Install LilyGO ERP';
+
+  @override
+  String get installAppBody =>
+      'Install this order screen on Android, iOS, Windows, or macOS.';
+
+  @override
+  String get installAppHint =>
+      'Use Install app, Add to Dock, or on iPhone/iPad Share → Add to Home Screen.';
+
+  @override
+  String get enableNotificationsButton => 'Enable notifications';
+
+  @override
+  String get notificationsEnabled => 'Notifications enabled';
+
+  @override
+  String get notificationsBlocked =>
+      'Notifications are blocked in this browser';
+
+  @override
+  String get keepAwakeButton => 'Keep screen awake';
+
+  @override
+  String get screenAwakeEnabled =>
+      'Screen will stay awake while this page is open';
+
+  @override
+  String get newOrderNotificationTitle => 'New order';
+
+  @override
+  String newOrderNotificationBody(String ref) {
+    return 'Order $ref is ready to review.';
+  }
+
+  @override
+  String get alwaysOnConnectionHint =>
+      'Keep this installed app open for live WebRTC orders. If the device suspends it, the connection will show Reconnect needed.';
+
+  @override
+  String get iosInstallHint =>
+      'On iPhone or iPad: Share → Add to Home Screen, then keep the app open for live orders.';
+
+  @override
+  String get backgroundSupportNav => 'Always-on & notifications';
+
+  @override
+  String get backgroundSupportTitle => 'Always-on & notifications';
+
+  @override
+  String get backgroundSupportSubtitle =>
+      'Keep the portal connection visible and receive order alerts.';
+
+  @override
+  String get backgroundSupportWebTitle => 'Web app';
+
+  @override
+  String get backgroundSupportWebBody =>
+      'Works while this page is open. The browser may suspend it when it is in the background.';
+
+  @override
+  String get backgroundSupportAndroidTitle => 'Android';
+
+  @override
+  String get backgroundSupportAndroidBody =>
+      'A native foreground-service app is required for reliable background operation.';
+
+  @override
+  String get backgroundSupportIosTitle => 'iPhone & iPad';
+
+  @override
+  String get backgroundSupportIosBody =>
+      'Install from Safari for quick access. Background alerts require Apple Push Notifications.';
+
+  @override
+  String get backgroundSupportChromeTitle => 'Chrome extension';
+
+  @override
+  String get backgroundSupportChromeBody =>
+      'Install the extension to open the portal in a dedicated Chrome app tab.';
+
+  @override
+  String get downloadChromeExtensionButton => 'Download Chrome extension';
+
+  @override
+  String get backgroundSupportKeepOpen =>
+      'For live WebRTC orders, keep the portal open on the always-on device.';
+
+  @override
+  String get deviceConnectionTitle => 'LAN device connection';
+
+  @override
+  String get deviceConnectionBody =>
+      'The ESP32 is a LAN-only storage and attestation server. It does not serve the web app.';
+
+  @override
+  String get deviceUrlLabel => 'ESP32 LAN URL';
+
+  @override
+  String get deviceUrlHint => 'http://192.168.1.50:8000';
+
+  @override
+  String get saveDeviceUrlButton => 'Save device URL';
+
+  @override
+  String get scanDeviceQrButton => 'Scan device QR';
+
+  @override
+  String get deviceUrlSaved => 'Device URL saved';
+
+  @override
+  String get deviceReachable => 'Device is reachable';
+
+  @override
+  String get deviceUnavailable => 'Device is unavailable';
+
+  @override
+  String get deviceQrUnsupported =>
+      'QR scanning is not supported in this browser. Enter the LAN URL manually.';
+
+  @override
   String get menuFallbackCategory => 'Menu';
 
   @override
@@ -266,6 +387,15 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get clientOrderConfirmButton => 'Confirmar pedido';
+
+  @override
+  String get checkoutInvoiceTitle => 'Invoice preview';
+
+  @override
+  String get paymentMethodLabel => 'Payment method';
+
+  @override
+  String get cashPaymentLabel => 'Cash';
 
   @override
   String get salesWorkspaceTitle => 'Espaço de vendas';
@@ -695,6 +825,39 @@ class AppLocalizationsPt extends AppLocalizations {
   String get restoreTooltip => 'Restaurar dados';
 
   @override
+  String get googleDriveBackupTooltip => 'Back up to Google Drive';
+
+  @override
+  String get googleDriveRestoreTooltip => 'Restore from Google Drive';
+
+  @override
+  String get googleSheetExportTooltip => 'Export to Google Sheet';
+
+  @override
+  String get googleSheetImportTooltip => 'Import from Google Sheet';
+
+  @override
+  String get googleWorkspaceClientMissing =>
+      'Google Workspace is not configured for this deployment';
+
+  @override
+  String get googleWorkspaceBackupDone => 'Backup saved to Google Drive';
+
+  @override
+  String get googleWorkspaceRestoreDone => 'Backup restored from Google Drive';
+
+  @override
+  String googleWorkspaceSheetDone(Object url) {
+    return 'Google Sheet exported: $url';
+  }
+
+  @override
+  String get googleWorkspaceSheetIdLabel => 'Google Sheet ID or URL';
+
+  @override
+  String get googleWorkspaceSheetImportDone => 'Google Sheet imported';
+
+  @override
   String get refreshTooltip => 'Atualizar dados';
 
   @override
@@ -978,4 +1141,248 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get statusQueryExecuted => 'Consulta executada';
+
+  @override
+  String get navRegister => 'Register';
+
+  @override
+  String get navRegisterSettlement => 'Till';
+
+  @override
+  String get navSalesAnalysis => 'Sales analysis';
+
+  @override
+  String get navPosSettings => 'POS settings';
+
+  @override
+  String get noCategoryOption => 'No category';
+
+  @override
+  String get taxIncludedLabel => 'Tax included in price';
+
+  @override
+  String get taxIncludedHint =>
+      'Turn off if this product\'s price excludes tax';
+
+  @override
+  String get newCategoryTitle => 'New category';
+
+  @override
+  String get editCategoryTitle => 'Edit category';
+
+  @override
+  String get deleteCategoryConfirmTitle => 'Delete this category?';
+
+  @override
+  String get deleteCategoryConfirmBody =>
+      'Products in this category will become uncategorized. This cannot be undone.';
+
+  @override
+  String get deleteButton => 'Delete';
+
+  @override
+  String get productsTabLabel => 'Products';
+
+  @override
+  String get categoriesTabLabel => 'Categories';
+
+  @override
+  String get newCategoryButton => 'New category';
+
+  @override
+  String get categoriesEmpty => 'No categories yet.';
+
+  @override
+  String productCountLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count products',
+      one: '1 product',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get registerSectionTitle => 'Register';
+
+  @override
+  String get registerSectionSubtitle => 'Ring up items and take payment';
+
+  @override
+  String get allCategoriesLabel => 'All';
+
+  @override
+  String get cartTitle => 'Cart';
+
+  @override
+  String get cartEmptyLabel => 'Cart is empty';
+
+  @override
+  String get totalLabel => 'Total';
+
+  @override
+  String get payButtonLabel => 'Pay';
+
+  @override
+  String get registerNotOpenWarning =>
+      'Open the register from the Till screen before taking payment';
+
+  @override
+  String get saleCompleteTitle => 'Sale complete';
+
+  @override
+  String get saleCompleteBody => 'Payment received';
+
+  @override
+  String changeDueLabel(String amount) {
+    return 'Change due: NT\$$amount';
+  }
+
+  @override
+  String get okButton => 'OK';
+
+  @override
+  String get registerSettlementTitle => 'Till';
+
+  @override
+  String get registerSettlementSubtitle =>
+      'Open and close the register, and review cash totals';
+
+  @override
+  String get colOpenedAt => 'Opened';
+
+  @override
+  String get colClosedAt => 'Closed';
+
+  @override
+  String get colOpeningFloat => 'Opening float';
+
+  @override
+  String get colCountedCash => 'Counted cash';
+
+  @override
+  String get registerHistoryTitle => 'History';
+
+  @override
+  String get registerHistoryEmpty => 'No register sessions yet.';
+
+  @override
+  String get openRegisterCardTitle => 'Open the register';
+
+  @override
+  String get openingFloatLabel => 'Opening float';
+
+  @override
+  String get openRegisterButton => 'Open register';
+
+  @override
+  String activeSessionTitle(String time) {
+    return 'Register opened $time';
+  }
+
+  @override
+  String openingFloatSummary(String amount) {
+    return 'Opening float: NT\$$amount';
+  }
+
+  @override
+  String get closeRegisterButton => 'Close register';
+
+  @override
+  String get recentSalesTitle => 'Recent sales';
+
+  @override
+  String get recentSalesEmpty => 'No sales yet this session.';
+
+  @override
+  String get refundedChipLabel => 'Refunded';
+
+  @override
+  String get refundButton => 'Refund';
+
+  @override
+  String get closeRegisterTitle => 'Close register';
+
+  @override
+  String expectedCashLabel(String amount) {
+    return 'Expected cash: NT\$$amount';
+  }
+
+  @override
+  String get countedCashLabel => 'Counted cash';
+
+  @override
+  String varianceLabel(String amount) {
+    return 'Variance: NT\$$amount';
+  }
+
+  @override
+  String get refundConfirmTitle => 'Refund this sale?';
+
+  @override
+  String get refundConfirmBody =>
+      'This restores stock and records a credit note. This cannot be undone.';
+
+  @override
+  String get checkoutTitle => 'Checkout';
+
+  @override
+  String get tenderedAmountLabel => 'Amount tendered';
+
+  @override
+  String get completeSaleButton => 'Complete sale';
+
+  @override
+  String get salesAnalysisSectionTitle => 'Sales analysis';
+
+  @override
+  String get salesAnalysisSectionSubtitle =>
+      'Daily, category, and product sales breakdowns';
+
+  @override
+  String get rangeTodayLabel => 'Today';
+
+  @override
+  String get range7dLabel => '7 days';
+
+  @override
+  String get range30dLabel => '30 days';
+
+  @override
+  String get rangeAllLabel => 'All';
+
+  @override
+  String get dailySalesLabel => 'Daily sales';
+
+  @override
+  String get exportCsvButton => 'Export CSV';
+
+  @override
+  String get salesAnalysisEmpty => 'No sales in this period.';
+
+  @override
+  String get salesByCategoryLabel => 'Sales by category';
+
+  @override
+  String get salesByProductLabel => 'Sales by product';
+
+  @override
+  String get posSettingsSectionTitle => 'POS settings';
+
+  @override
+  String get posSettingsSectionSubtitle =>
+      'Default tax handling for new products';
+
+  @override
+  String get defaultTaxModeLabel => 'Prices include tax by default';
+
+  @override
+  String get standardRateLabel => 'Standard tax rate (%)';
+
+  @override
+  String get reducedRateLabel => 'Reduced tax rate (%)';
+
+  @override
+  String get uncategorizedLabel => 'Uncategorized';
 }

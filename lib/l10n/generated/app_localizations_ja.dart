@@ -225,6 +225,127 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String get installAppTitle => 'Install LilyGO ERP';
+
+  @override
+  String get installAppBody =>
+      'Install this order screen on Android, iOS, Windows, or macOS.';
+
+  @override
+  String get installAppHint =>
+      'Use Install app, Add to Dock, or on iPhone/iPad Share → Add to Home Screen.';
+
+  @override
+  String get enableNotificationsButton => 'Enable notifications';
+
+  @override
+  String get notificationsEnabled => 'Notifications enabled';
+
+  @override
+  String get notificationsBlocked =>
+      'Notifications are blocked in this browser';
+
+  @override
+  String get keepAwakeButton => 'Keep screen awake';
+
+  @override
+  String get screenAwakeEnabled =>
+      'Screen will stay awake while this page is open';
+
+  @override
+  String get newOrderNotificationTitle => 'New order';
+
+  @override
+  String newOrderNotificationBody(String ref) {
+    return 'Order $ref is ready to review.';
+  }
+
+  @override
+  String get alwaysOnConnectionHint =>
+      'Keep this installed app open for live WebRTC orders. If the device suspends it, the connection will show Reconnect needed.';
+
+  @override
+  String get iosInstallHint =>
+      'On iPhone or iPad: Share → Add to Home Screen, then keep the app open for live orders.';
+
+  @override
+  String get backgroundSupportNav => 'Always-on & notifications';
+
+  @override
+  String get backgroundSupportTitle => 'Always-on & notifications';
+
+  @override
+  String get backgroundSupportSubtitle =>
+      'Keep the portal connection visible and receive order alerts.';
+
+  @override
+  String get backgroundSupportWebTitle => 'Web app';
+
+  @override
+  String get backgroundSupportWebBody =>
+      'Works while this page is open. The browser may suspend it when it is in the background.';
+
+  @override
+  String get backgroundSupportAndroidTitle => 'Android';
+
+  @override
+  String get backgroundSupportAndroidBody =>
+      'A native foreground-service app is required for reliable background operation.';
+
+  @override
+  String get backgroundSupportIosTitle => 'iPhone & iPad';
+
+  @override
+  String get backgroundSupportIosBody =>
+      'Install from Safari for quick access. Background alerts require Apple Push Notifications.';
+
+  @override
+  String get backgroundSupportChromeTitle => 'Chrome extension';
+
+  @override
+  String get backgroundSupportChromeBody =>
+      'Install the extension to open the portal in a dedicated Chrome app tab.';
+
+  @override
+  String get downloadChromeExtensionButton => 'Download Chrome extension';
+
+  @override
+  String get backgroundSupportKeepOpen =>
+      'For live WebRTC orders, keep the portal open on the always-on device.';
+
+  @override
+  String get deviceConnectionTitle => 'LAN device connection';
+
+  @override
+  String get deviceConnectionBody =>
+      'The ESP32 is a LAN-only storage and attestation server. It does not serve the web app.';
+
+  @override
+  String get deviceUrlLabel => 'ESP32 LAN URL';
+
+  @override
+  String get deviceUrlHint => 'http://192.168.1.50:8000';
+
+  @override
+  String get saveDeviceUrlButton => 'Save device URL';
+
+  @override
+  String get scanDeviceQrButton => 'Scan device QR';
+
+  @override
+  String get deviceUrlSaved => 'Device URL saved';
+
+  @override
+  String get deviceReachable => 'Device is reachable';
+
+  @override
+  String get deviceUnavailable => 'Device is unavailable';
+
+  @override
+  String get deviceQrUnsupported =>
+      'QR scanning is not supported in this browser. Enter the LAN URL manually.';
+
+  @override
   String get menuFallbackCategory => 'メニュー';
 
   @override
@@ -258,6 +379,15 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get clientOrderConfirmButton => '注文を確定する';
+
+  @override
+  String get checkoutInvoiceTitle => 'Invoice preview';
+
+  @override
+  String get paymentMethodLabel => 'Payment method';
+
+  @override
+  String get cashPaymentLabel => 'Cash';
 
   @override
   String get salesWorkspaceTitle => '営業ワークスペース';
@@ -678,6 +808,39 @@ class AppLocalizationsJa extends AppLocalizations {
   String get restoreTooltip => 'データを復元';
 
   @override
+  String get googleDriveBackupTooltip => 'Back up to Google Drive';
+
+  @override
+  String get googleDriveRestoreTooltip => 'Restore from Google Drive';
+
+  @override
+  String get googleSheetExportTooltip => 'Export to Google Sheet';
+
+  @override
+  String get googleSheetImportTooltip => 'Import from Google Sheet';
+
+  @override
+  String get googleWorkspaceClientMissing =>
+      'Google Workspace is not configured for this deployment';
+
+  @override
+  String get googleWorkspaceBackupDone => 'Backup saved to Google Drive';
+
+  @override
+  String get googleWorkspaceRestoreDone => 'Backup restored from Google Drive';
+
+  @override
+  String googleWorkspaceSheetDone(Object url) {
+    return 'Google Sheet exported: $url';
+  }
+
+  @override
+  String get googleWorkspaceSheetIdLabel => 'Google Sheet ID or URL';
+
+  @override
+  String get googleWorkspaceSheetImportDone => 'Google Sheet imported';
+
+  @override
   String get refreshTooltip => 'データを更新';
 
   @override
@@ -954,4 +1117,240 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get statusQueryExecuted => 'クエリを実行しました';
+
+  @override
+  String get navRegister => '注文入力・会計';
+
+  @override
+  String get navRegisterSettlement => '点検・精算';
+
+  @override
+  String get navSalesAnalysis => '売上分析';
+
+  @override
+  String get navPosSettings => 'POS設定';
+
+  @override
+  String get noCategoryOption => 'カテゴリーなし';
+
+  @override
+  String get taxIncludedLabel => '価格に税込み';
+
+  @override
+  String get taxIncludedHint => 'この商品の価格が税抜きの場合はオフにしてください';
+
+  @override
+  String get newCategoryTitle => '新しいカテゴリー';
+
+  @override
+  String get editCategoryTitle => 'カテゴリーを編集';
+
+  @override
+  String get deleteCategoryConfirmTitle => 'このカテゴリーを削除しますか？';
+
+  @override
+  String get deleteCategoryConfirmBody => 'このカテゴリーの商品は未分類になります。この操作は取り消せません。';
+
+  @override
+  String get deleteButton => '削除';
+
+  @override
+  String get productsTabLabel => '商品';
+
+  @override
+  String get categoriesTabLabel => 'カテゴリー';
+
+  @override
+  String get newCategoryButton => '新しいカテゴリー';
+
+  @override
+  String get categoriesEmpty => 'カテゴリーがまだありません。';
+
+  @override
+  String productCountLabel(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count件の商品',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get registerSectionTitle => '注文入力・会計';
+
+  @override
+  String get registerSectionSubtitle => '商品を選択して会計を行います';
+
+  @override
+  String get allCategoriesLabel => 'すべて';
+
+  @override
+  String get cartTitle => '注文内容';
+
+  @override
+  String get cartEmptyLabel => 'カートは空です';
+
+  @override
+  String get totalLabel => '合計';
+
+  @override
+  String get payButtonLabel => '支払いへ進む';
+
+  @override
+  String get registerNotOpenWarning => '会計の前に「点検・精算」画面でレジを開いてください';
+
+  @override
+  String get saleCompleteTitle => 'お会計を完了しました';
+
+  @override
+  String get saleCompleteBody => 'お支払いを受け付けました';
+
+  @override
+  String changeDueLabel(String amount) {
+    return 'おつり：NT\$$amount';
+  }
+
+  @override
+  String get okButton => 'OK';
+
+  @override
+  String get registerSettlementTitle => '点検・精算';
+
+  @override
+  String get registerSettlementSubtitle => 'レジを開閉し、売上を確認します';
+
+  @override
+  String get colOpenedAt => '開始';
+
+  @override
+  String get colClosedAt => '終了';
+
+  @override
+  String get colOpeningFloat => 'つり銭準備金';
+
+  @override
+  String get colCountedCash => '点検金額';
+
+  @override
+  String get registerHistoryTitle => '履歴';
+
+  @override
+  String get registerHistoryEmpty => 'レジの記録がまだありません。';
+
+  @override
+  String get openRegisterCardTitle => 'レジを開ける';
+
+  @override
+  String get openingFloatLabel => 'つり銭準備金';
+
+  @override
+  String get openRegisterButton => 'レジを開ける';
+
+  @override
+  String activeSessionTitle(String time) {
+    return 'レジ開始：$time';
+  }
+
+  @override
+  String openingFloatSummary(String amount) {
+    return 'つり銭準備金：NT\$$amount';
+  }
+
+  @override
+  String get closeRegisterButton => 'レジを締める';
+
+  @override
+  String get recentSalesTitle => '最近の会計';
+
+  @override
+  String get recentSalesEmpty => 'このレジではまだ会計がありません。';
+
+  @override
+  String get refundedChipLabel => '返品済み';
+
+  @override
+  String get refundButton => '返品';
+
+  @override
+  String get closeRegisterTitle => 'レジを締める';
+
+  @override
+  String expectedCashLabel(String amount) {
+    return '理論現金：NT\$$amount';
+  }
+
+  @override
+  String get countedCashLabel => '実現金';
+
+  @override
+  String varianceLabel(String amount) {
+    return '差額：NT\$$amount';
+  }
+
+  @override
+  String get refundConfirmTitle => 'この会計を返品しますか？';
+
+  @override
+  String get refundConfirmBody => '在庫が戻り、返品伝票が作成されます。この操作は取り消せません。';
+
+  @override
+  String get checkoutTitle => 'お会計';
+
+  @override
+  String get tenderedAmountLabel => 'お預り金額';
+
+  @override
+  String get completeSaleButton => '会計する';
+
+  @override
+  String get salesAnalysisSectionTitle => '売上分析';
+
+  @override
+  String get salesAnalysisSectionSubtitle => '日別・カテゴリー別・商品別の売上を確認します';
+
+  @override
+  String get rangeTodayLabel => '本日';
+
+  @override
+  String get range7dLabel => '7日間';
+
+  @override
+  String get range30dLabel => '30日間';
+
+  @override
+  String get rangeAllLabel => 'すべて';
+
+  @override
+  String get dailySalesLabel => '日別売上';
+
+  @override
+  String get exportCsvButton => 'CSVを出力';
+
+  @override
+  String get salesAnalysisEmpty => 'この期間の売上はありません。';
+
+  @override
+  String get salesByCategoryLabel => 'カテゴリー別売上';
+
+  @override
+  String get salesByProductLabel => '商品別売上';
+
+  @override
+  String get posSettingsSectionTitle => 'POS設定';
+
+  @override
+  String get posSettingsSectionSubtitle => '新規商品の税設定の初期値';
+
+  @override
+  String get defaultTaxModeLabel => '価格に税を含める（内税）';
+
+  @override
+  String get standardRateLabel => '標準税率（%）';
+
+  @override
+  String get reducedRateLabel => '軽減税率（%）';
+
+  @override
+  String get uncategorizedLabel => '未分類';
 }

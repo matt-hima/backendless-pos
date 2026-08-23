@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "LilyGO ERP Portal",
+  "description": "Open the LilyGO ERP portal in a dedicated Chrome app tab.",
+  "version": "1.0.0",
+  "action": {
+    "default_title": "Open LilyGO ERP",
+    "default_popup": "popup.html"
+  },
+  "background": {"service_worker": "background.js"},
+  "permissions": ["notifications", "tabs", "storage"]
+}

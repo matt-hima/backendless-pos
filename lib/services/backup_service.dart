@@ -8,6 +8,14 @@ class BackupService {
     js_util.callMethod(_bridge, 'downloadJson', [filename, json]);
   }
 
+  Future<void> downloadText(
+    String filename,
+    String content, [
+    String mimeType = 'text/csv',
+  ]) async {
+    js_util.callMethod(_bridge, 'downloadText', [filename, content, mimeType]);
+  }
+
   Future<String> pickJsonFile() async =>
       await _promise(js_util.callMethod(_bridge, 'pickJsonFile', const []))
           as String;

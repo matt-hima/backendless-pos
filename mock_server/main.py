@@ -9,18 +9,24 @@ import hashlib
 import hmac
 import json
 
-import httpx
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 
 SD_CARD = Path(__file__).resolve().parent.parent / "mock_sd_card"
 SD_CARD.mkdir(parents=True, exist_ok=True)
-REMOTE_WEB_ORIGIN = os.getenv("REMOTE_WEB_ORIGIN", "https://remote-order.web.app").rstrip("/")
 DEVICE_SYNC_TOKEN = os.getenv("DEVICE_SYNC_TOKEN", "")
 MAX_SYNC_BYTES = int(os.getenv("MAX_SYNC_BYTES", str(10 * 1024 * 1024)))
 DEVICE_KEY_PATH = Path(os.getenv("DEVICE_KEY_PATH", str(SD_CARD / ".device_auth_key")))
+DEVICE_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "DEVICE_ALLOWED_ORIGINS",
+        "https://remote-order.web.app,http://127.0.0.1:8000,http://localhost:8000",
+    ).split(",")
+    if origin.strip()
+]
 
 
 def _device_key() -> bytes:
@@ -32,21 +38,10 @@ def _device_key() -> bytes:
         except OSError:
             pass
     return DEVICE_KEY_PATH.read_bytes()
-_HOP_BY_HOP_HEADERS = {
-    "connection",
-    "keep-alive",
-    "proxy-authenticate",
-    "proxy-authorization",
-    "te",
-    "trailer",
-    "transfer-encoding",
-    "upgrade",
-}
-
 app = FastAPI(title="Mock LilyGO Storage API", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[],
+    allow_origins=DEVICE_ALLOWED_ORIGINS,
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -120,40 +115,11 @@ async def sync_storage(request: Request, filename: str | None = None) -> dict[st
     return {"status": "stored", "filename": output.name, "bytes": byte_count}
 
 
-@app.api_route("/{path:path}", methods=["GET", "HEAD"])
-async def proxy_remote_web(request: Request, path: str) -> Response:
-    """Serve the hosted Flutter app while keeping device APIs on this emulator."""
-    upstream_url = f"{REMOTE_WEB_ORIGIN}/{path}"
-    if request.url.query:
-        upstream_url = f"{upstream_url}?{request.url.query}"
-
-    try:
-        async with httpx.AsyncClient(follow_redirects=False, timeout=30.0) as client:
-            upstream = await client.request(request.method, upstream_url)
-    except httpx.HTTPError as error:
-        return Response(
-            content=f"Remote web proxy unavailable: {error}",
-            status_code=502,
-            media_type="text/plain",
-        )
-
-    headers = {
-        name: value
-        for name, value in upstream.headers.items()
-        if name.lower() not in _HOP_BY_HOP_HEADERS
-        and name.lower() not in {"content-length", "content-encoding"}
-    }
-    headers.update({
-        "x-content-type-options": "nosniff",
-        "referrer-policy": "no-referrer",
-        "permissions-policy": "camera=(), microphone=(), geolocation=()",
-    })
-    location = headers.get("location")
-    if location and location.startswith(REMOTE_WEB_ORIGIN):
-        headers["location"] = location[len(REMOTE_WEB_ORIGIN):] or "/"
-
-    return Response(
-        content=b"" if request.method == "HEAD" else upstream.content,
-        status_code=upstream.status_code,
-        headers=headers,
+@app.api_route("/{path:path}", methods=["GET", "HEAD", "POST", "PUT", "OPTIONS"])
+async def device_only_fallback(path: str) -> JSONResponse:
+    """Never serve the web app here; this process is a LAN device API only."""
+    return JSONResponse(
+        {"error": "device_api_only", "path": f"/{path}"},
+        status_code=404,
+        headers={"x-content-type-options": "nosniff"},
     )

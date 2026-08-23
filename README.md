@@ -120,9 +120,9 @@ https://remote-order.web.app/?channel=ABC123
 
 The portal's **Create channel** action generates a code and shareable URL. Orders saved from that URL carry the channel code in their IndexedDB transaction record, keeping separate tables, rooms, or ordering sessions logically isolated.
 
-The hosted FQDN can save orders to browser IndexedDB, but it cannot directly write to a private ESP32/UTM IP from public HTTPS. For ESP32 sync, expose a secure HTTPS relay/API or run the client on the same reachable LAN; do not point a production hosted page at an unreachable private address.
+The hosted FQDN remains the web application. The ESP32/UTM service is LAN-only and does not proxy or serve the web app: port `8000` exposes only the device API. In the portal's **LAN device connection** card, enter the device URL manually or scan a QR code containing a URL such as `http://192.168.1.50:8000`. The portal checks `/api/health`, then uses the same URL for device attestation and `PUT /api/storage/sync`.
 
-The UTM emulator provides that same-LAN path without rebuilding the web app: browse to `http://VM_IP:8000/`. GET/HEAD requests are proxied to `remote-order.web.app`, while `PUT /api/storage/sync` remains local and writes to the emulator's SD-card directory. Set `REMOTE_WEB_ORIGIN` if the hosted site changes.
+Set `DEVICE_ALLOWED_ORIGINS` on the device when the portal origin changes. The default allows `https://remote-order.web.app` plus local development origins. For a hosted HTTPS portal to call an HTTP LAN device, the browser may block mixed content or private-network requests; use HTTPS on the device or a local/extension portal when that browser policy applies.
 
 When the device is reachable, the portal calls `POST /api/device/attest` with a one-time nonce before accepting a WebRTC order. The emulator keeps its HMAC device key in `mock_sd_card/.device_auth_key` and returns only a proof; the key is never sent to the portal. If the device is offline, the portal remains usable and queues its local DuckDB state for a later sync.
 

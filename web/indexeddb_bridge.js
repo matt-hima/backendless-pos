@@ -2,8 +2,8 @@
 // customer-facing menu; DuckDB remains the relational portal/export database.
 (() => {
   const DB_NAME = 'dolibarr_client_db';
-  const DB_VERSION = 7;
-  const ALL_STORES = ['llx_product', 'llx_commande', 'llx_commandedet', 'llx_societe', 'llx_channel', 'llx_livechat', 'cms_items', 'bookings'];
+  const DB_VERSION = 8;
+  const ALL_STORES = ['llx_product', 'llx_commande', 'llx_commandedet', 'llx_societe', 'llx_channel', 'llx_livechat', 'cms_items', 'bookings', 'member_session'];
   let database;
 
   function open() {
@@ -25,6 +25,7 @@
         const cms = db.objectStoreNames.contains('cms_items') ? request.transaction.objectStore('cms_items') : db.createObjectStore('cms_items', {keyPath: 'rowid'});
         if (!cms.indexNames.contains('collection')) cms.createIndex('collection', 'collection');
         if (!db.objectStoreNames.contains('bookings')) db.createObjectStore('bookings', {keyPath: 'id'});
+        if (!db.objectStoreNames.contains('member_session')) db.createObjectStore('member_session', {keyPath: 'id'});
       };
       request.onsuccess = () => { database = request.result; resolve(database); };
       request.onerror = () => reject(request.error);
@@ -55,12 +56,27 @@
   window.IndexedDbBridge = {
     async init(productsJson) {
       await open();
+      const legacy = await requestValue(transaction(['llx_product']).objectStore('llx_product').getAll());
+      const cleanup = transaction(['llx_product'], 'readwrite');
+      for (const product of legacy) {
+        if (String(product.ref || '').startsWith('DTF-')) cleanup.objectStore('llx_product').delete(product.rowid);
+      }
+      await new Promise((resolve, reject) => { cleanup.oncomplete = resolve; cleanup.onerror = () => reject(cleanup.error); });
       await seed(JSON.parse(productsJson));
     },
     async products() {
       await open();
       const rows = await requestValue(transaction(['llx_product']).objectStore('llx_product').getAll());
       return JSON.stringify(rows);
+    },
+    async saveProducts(productsJson) {
+      await open();
+      const products = JSON.parse(productsJson);
+      const tx = transaction(['llx_product'], 'readwrite');
+      const store = tx.objectStore('llx_product');
+      store.clear();
+      for (const product of products) store.put(product);
+      await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
     },
     async saveWalletThirdParty(thirdpartyJson) {
       await open();
@@ -74,6 +90,33 @@
       const rows = await requestValue(transaction(['llx_societe']).objectStore('llx_societe').getAll());
       return JSON.stringify(rows.find((row) => row.wallet === wallet) || null);
     },
+    async saveMemberSession(sessionJson) {
+      await open();
+      const session = JSON.parse(sessionJson);
+      const tx = transaction(['member_session'], 'readwrite');
+      tx.objectStore('member_session').put(session);
+      await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
+    },
+    async expireMemberData(nowIso) {
+      await open();
+      const now = new Date(nowIso).getTime();
+      const sessions = await requestValue(transaction(['member_session']).objectStore('member_session').getAll());
+      for (const session of sessions) {
+        if (new Date(session.expires_at).getTime() <= now) {
+          const expiredRows = {};
+          for (const storeName of ['llx_commande', 'llx_societe', 'llx_livechat']) {
+            expiredRows[storeName] = (await requestValue(transaction([storeName]).objectStore(storeName).getAll()))
+              .filter((row) => row.wallet === session.wallet);
+          }
+          const tx = transaction(['member_session', 'llx_commande', 'llx_societe', 'llx_livechat'], 'readwrite');
+          tx.objectStore('member_session').delete(session.id);
+          for (const [storeName, rows] of Object.entries(expiredRows)) {
+            for (const row of rows) tx.objectStore(storeName).delete(row.rowid);
+          }
+          await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
+        }
+      }
+    },
     async saveEncryptedTransaction(transactionJson) {
       await open();
       const transactionObject = JSON.parse(transactionJson);
@@ -86,10 +129,20 @@
       const rows = await requestValue(transaction(['llx_commande']).objectStore('llx_commande').getAll());
       return JSON.stringify(rows.filter((row) => row.channel === channel && row.wallet === wallet));
     },
-    async createChannel(name) {
+    async createChannel(name, merchantId) {
       await open();
-      const code = Math.random().toString(36).slice(2, 8).toUpperCase();
-      const channel = {code, name: name || `Channel ${code}`, created_at: new Date().toISOString()};
+      const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let code;
+      for (let attempt = 0; attempt < 20; attempt++) {
+        const bytes = crypto.getRandomValues(new Uint8Array(6));
+        const candidate = Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join('');
+        const existing = await requestValue(
+          transaction(['llx_channel']).objectStore('llx_channel').get(candidate),
+        );
+        if (!existing) { code = candidate; break; }
+      }
+      if (!code) throw new Error('Could not create a unique merchant channel');
+      const channel = {code, merchant_id: merchantId || null, name: name || `Channel ${code}`, created_at: new Date().toISOString()};
       const tx = transaction(['llx_channel'], 'readwrite');
       tx.objectStore('llx_channel').put(channel);
       await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });

@@ -192,7 +192,7 @@ abstract class AppLocalizations {
   /// No description provided for @passkeySetupBody.
   ///
   /// In en, this message translates to:
-  /// **'Sign in faster next time using this device\'s fingerprint, face, or PIN. This only works on this device and browser — it\'s a local convenience, not a way to access your account elsewhere.'**
+  /// **'Enable FIDO for quick member access on this device using its fingerprint, face, or PIN. Join the member account again on another computer.'**
   String get passkeySetupBody;
 
   /// No description provided for @passkeySetupButton.
@@ -204,7 +204,7 @@ abstract class AppLocalizations {
   /// No description provided for @passkeyManageButton.
   ///
   /// In en, this message translates to:
-  /// **'Set up passkey sign-in'**
+  /// **'Enable FIDO quick access'**
   String get passkeyManageButton;
 
   /// No description provided for @passkeyUnsupportedError.
@@ -222,13 +222,13 @@ abstract class AppLocalizations {
   /// No description provided for @accountEntryTitle.
   ///
   /// In en, this message translates to:
-  /// **'Sign in'**
+  /// **'Join member'**
   String get accountEntryTitle;
 
   /// No description provided for @accountEntryBody.
   ///
   /// In en, this message translates to:
-  /// **'Enter your mobile number to send orders. Use passkey for quick access on this device; use Advanced options for birthday details or your recovery words on another device.'**
+  /// **'Enter your mobile number to send orders. Birthday is optional for access from another computer. Recovery words are optional for stronger security.'**
   String get accountEntryBody;
 
   /// No description provided for @accountChoiceTitle.
@@ -378,7 +378,7 @@ abstract class AppLocalizations {
   /// No description provided for @quickSetupWarning.
   ///
   /// In en, this message translates to:
-  /// **'Mobile number is for daily member access. Passkey is the fastest option on this device; keep birthday details or recovery words for access from another device.'**
+  /// **'Mobile number is required. Birthday is optional for another computer, and recovery words are optional for higher security.'**
   String get quickSetupWarning;
 
   /// No description provided for @quickSetupMobileLabel.
@@ -390,7 +390,7 @@ abstract class AppLocalizations {
   /// No description provided for @quickSetupBirthdayLabel.
   ///
   /// In en, this message translates to:
-  /// **'Birthday (YYYY-MM-DD)'**
+  /// **'Birthday (optional · member benefits)'**
   String get quickSetupBirthdayLabel;
 
   /// No description provided for @storeNameFieldLabel.
@@ -513,6 +513,216 @@ abstract class AppLocalizations {
   /// **'Channel: {channel} · Tap a dish to see details and add it to your order'**
   String clientMenuSubtitle(String channel);
 
+  /// No description provided for @installAppTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Install LilyGO ERP'**
+  String get installAppTitle;
+
+  /// No description provided for @installAppBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Install this order screen on Android, iOS, Windows, or macOS.'**
+  String get installAppBody;
+
+  /// No description provided for @installAppHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Use Install app, Add to Dock, or on iPhone/iPad Share → Add to Home Screen.'**
+  String get installAppHint;
+
+  /// No description provided for @enableNotificationsButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable notifications'**
+  String get enableNotificationsButton;
+
+  /// No description provided for @notificationsEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications enabled'**
+  String get notificationsEnabled;
+
+  /// No description provided for @notificationsBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are blocked in this browser'**
+  String get notificationsBlocked;
+
+  /// No description provided for @keepAwakeButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep screen awake'**
+  String get keepAwakeButton;
+
+  /// No description provided for @screenAwakeEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Screen will stay awake while this page is open'**
+  String get screenAwakeEnabled;
+
+  /// No description provided for @newOrderNotificationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New order'**
+  String get newOrderNotificationTitle;
+
+  /// No description provided for @newOrderNotificationBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Order {ref} is ready to review.'**
+  String newOrderNotificationBody(String ref);
+
+  /// No description provided for @alwaysOnConnectionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep this installed app open for live WebRTC orders. If the device suspends it, the connection will show Reconnect needed.'**
+  String get alwaysOnConnectionHint;
+
+  /// No description provided for @iosInstallHint.
+  ///
+  /// In en, this message translates to:
+  /// **'On iPhone or iPad: Share → Add to Home Screen, then keep the app open for live orders.'**
+  String get iosInstallHint;
+
+  /// No description provided for @backgroundSupportNav.
+  ///
+  /// In en, this message translates to:
+  /// **'Always-on & notifications'**
+  String get backgroundSupportNav;
+
+  /// No description provided for @backgroundSupportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Always-on & notifications'**
+  String get backgroundSupportTitle;
+
+  /// No description provided for @backgroundSupportSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the portal connection visible and receive order alerts.'**
+  String get backgroundSupportSubtitle;
+
+  /// No description provided for @backgroundSupportWebTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Web app'**
+  String get backgroundSupportWebTitle;
+
+  /// No description provided for @backgroundSupportWebBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Works while this page is open. The browser may suspend it when it is in the background.'**
+  String get backgroundSupportWebBody;
+
+  /// No description provided for @backgroundSupportAndroidTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Android'**
+  String get backgroundSupportAndroidTitle;
+
+  /// No description provided for @backgroundSupportAndroidBody.
+  ///
+  /// In en, this message translates to:
+  /// **'A native foreground-service app is required for reliable background operation.'**
+  String get backgroundSupportAndroidBody;
+
+  /// No description provided for @backgroundSupportIosTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'iPhone & iPad'**
+  String get backgroundSupportIosTitle;
+
+  /// No description provided for @backgroundSupportIosBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Install from Safari for quick access. Background alerts require Apple Push Notifications.'**
+  String get backgroundSupportIosBody;
+
+  /// No description provided for @backgroundSupportChromeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Chrome extension'**
+  String get backgroundSupportChromeTitle;
+
+  /// No description provided for @backgroundSupportChromeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Install the extension to open the portal in a dedicated Chrome app tab.'**
+  String get backgroundSupportChromeBody;
+
+  /// No description provided for @downloadChromeExtensionButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Download Chrome extension'**
+  String get downloadChromeExtensionButton;
+
+  /// No description provided for @backgroundSupportKeepOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'For live WebRTC orders, keep the portal open on the always-on device.'**
+  String get backgroundSupportKeepOpen;
+
+  /// No description provided for @deviceConnectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'LAN device connection'**
+  String get deviceConnectionTitle;
+
+  /// No description provided for @deviceConnectionBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The ESP32 is a LAN-only storage and attestation server. It does not serve the web app.'**
+  String get deviceConnectionBody;
+
+  /// No description provided for @deviceUrlLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'ESP32 LAN URL'**
+  String get deviceUrlLabel;
+
+  /// No description provided for @deviceUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'http://192.168.1.50:8000'**
+  String get deviceUrlHint;
+
+  /// No description provided for @saveDeviceUrlButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Save device URL'**
+  String get saveDeviceUrlButton;
+
+  /// No description provided for @scanDeviceQrButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan device QR'**
+  String get scanDeviceQrButton;
+
+  /// No description provided for @deviceUrlSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Device URL saved'**
+  String get deviceUrlSaved;
+
+  /// No description provided for @deviceReachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Device is reachable'**
+  String get deviceReachable;
+
+  /// No description provided for @deviceUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Device is unavailable'**
+  String get deviceUnavailable;
+
+  /// No description provided for @deviceQrUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'QR scanning is not supported in this browser. Enter the LAN URL manually.'**
+  String get deviceQrUnsupported;
+
   /// No description provided for @menuFallbackCategory.
   ///
   /// In en, this message translates to:
@@ -522,7 +732,7 @@ abstract class AppLocalizations {
   /// No description provided for @clientOrderLockedTitle.
   ///
   /// In en, this message translates to:
-  /// **'Sign in to place your order'**
+  /// **'Ready to order'**
   String get clientOrderLockedTitle;
 
   /// No description provided for @clientOrderUnlockedTitle.
@@ -534,7 +744,7 @@ abstract class AppLocalizations {
   /// No description provided for @clientOrderLockedSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Only account holders can create and view their own order history.'**
+  /// **'Enter your mobile number only when you send the order.'**
   String get clientOrderLockedSubtitle;
 
   /// No description provided for @clientOrderUnlockedSubtitle.
@@ -554,6 +764,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Confirm order'**
   String get clientOrderConfirmButton;
+
+  /// No description provided for @checkoutInvoiceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Invoice preview'**
+  String get checkoutInvoiceTitle;
+
+  /// No description provided for @paymentMethodLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment method'**
+  String get paymentMethodLabel;
+
+  /// No description provided for @cashPaymentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cash'**
+  String get cashPaymentLabel;
 
   /// No description provided for @salesWorkspaceTitle.
   ///
@@ -1275,6 +1503,66 @@ abstract class AppLocalizations {
   /// **'Restore data'**
   String get restoreTooltip;
 
+  /// No description provided for @googleDriveBackupTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Back up to Google Drive'**
+  String get googleDriveBackupTooltip;
+
+  /// No description provided for @googleDriveRestoreTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore from Google Drive'**
+  String get googleDriveRestoreTooltip;
+
+  /// No description provided for @googleSheetExportTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Export to Google Sheet'**
+  String get googleSheetExportTooltip;
+
+  /// No description provided for @googleSheetImportTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from Google Sheet'**
+  String get googleSheetImportTooltip;
+
+  /// No description provided for @googleWorkspaceClientMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Google Workspace is not configured for this deployment'**
+  String get googleWorkspaceClientMissing;
+
+  /// No description provided for @googleWorkspaceBackupDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup saved to Google Drive'**
+  String get googleWorkspaceBackupDone;
+
+  /// No description provided for @googleWorkspaceRestoreDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup restored from Google Drive'**
+  String get googleWorkspaceRestoreDone;
+
+  /// No description provided for @googleWorkspaceSheetDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Google Sheet exported: {url}'**
+  String googleWorkspaceSheetDone(Object url);
+
+  /// No description provided for @googleWorkspaceSheetIdLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Google Sheet ID or URL'**
+  String get googleWorkspaceSheetIdLabel;
+
+  /// No description provided for @googleWorkspaceSheetImportDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Google Sheet imported'**
+  String get googleWorkspaceSheetImportDone;
+
   /// No description provided for @refreshTooltip.
   ///
   /// In en, this message translates to:
@@ -1802,6 +2090,444 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Query executed'**
   String get statusQueryExecuted;
+
+  /// No description provided for @navRegister.
+  ///
+  /// In en, this message translates to:
+  /// **'Register'**
+  String get navRegister;
+
+  /// No description provided for @navRegisterSettlement.
+  ///
+  /// In en, this message translates to:
+  /// **'Till'**
+  String get navRegisterSettlement;
+
+  /// No description provided for @navSalesAnalysis.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales analysis'**
+  String get navSalesAnalysis;
+
+  /// No description provided for @navPosSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'POS settings'**
+  String get navPosSettings;
+
+  /// No description provided for @noCategoryOption.
+  ///
+  /// In en, this message translates to:
+  /// **'No category'**
+  String get noCategoryOption;
+
+  /// No description provided for @taxIncludedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Tax included in price'**
+  String get taxIncludedLabel;
+
+  /// No description provided for @taxIncludedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn off if this product\'s price excludes tax'**
+  String get taxIncludedHint;
+
+  /// No description provided for @newCategoryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New category'**
+  String get newCategoryTitle;
+
+  /// No description provided for @editCategoryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit category'**
+  String get editCategoryTitle;
+
+  /// No description provided for @deleteCategoryConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this category?'**
+  String get deleteCategoryConfirmTitle;
+
+  /// No description provided for @deleteCategoryConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Products in this category will become uncategorized. This cannot be undone.'**
+  String get deleteCategoryConfirmBody;
+
+  /// No description provided for @deleteButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get deleteButton;
+
+  /// No description provided for @productsTabLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Products'**
+  String get productsTabLabel;
+
+  /// No description provided for @categoriesTabLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Categories'**
+  String get categoriesTabLabel;
+
+  /// No description provided for @newCategoryButton.
+  ///
+  /// In en, this message translates to:
+  /// **'New category'**
+  String get newCategoryButton;
+
+  /// No description provided for @categoriesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No categories yet.'**
+  String get categoriesEmpty;
+
+  /// No description provided for @productCountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 product} other{{count} products}}'**
+  String productCountLabel(int count);
+
+  /// No description provided for @registerSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Register'**
+  String get registerSectionTitle;
+
+  /// No description provided for @registerSectionSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Ring up items and take payment'**
+  String get registerSectionSubtitle;
+
+  /// No description provided for @allCategoriesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get allCategoriesLabel;
+
+  /// No description provided for @cartTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Cart'**
+  String get cartTitle;
+
+  /// No description provided for @cartEmptyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cart is empty'**
+  String get cartEmptyLabel;
+
+  /// No description provided for @totalLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get totalLabel;
+
+  /// No description provided for @payButtonLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Pay'**
+  String get payButtonLabel;
+
+  /// No description provided for @registerNotOpenWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the register from the Till screen before taking payment'**
+  String get registerNotOpenWarning;
+
+  /// No description provided for @saleCompleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sale complete'**
+  String get saleCompleteTitle;
+
+  /// No description provided for @saleCompleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment received'**
+  String get saleCompleteBody;
+
+  /// No description provided for @changeDueLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Change due: NT\${amount}'**
+  String changeDueLabel(String amount);
+
+  /// No description provided for @okButton.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get okButton;
+
+  /// No description provided for @registerSettlementTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Till'**
+  String get registerSettlementTitle;
+
+  /// No description provided for @registerSettlementSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Open and close the register, and review cash totals'**
+  String get registerSettlementSubtitle;
+
+  /// No description provided for @colOpenedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Opened'**
+  String get colOpenedAt;
+
+  /// No description provided for @colClosedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Closed'**
+  String get colClosedAt;
+
+  /// No description provided for @colOpeningFloat.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening float'**
+  String get colOpeningFloat;
+
+  /// No description provided for @colCountedCash.
+  ///
+  /// In en, this message translates to:
+  /// **'Counted cash'**
+  String get colCountedCash;
+
+  /// No description provided for @registerHistoryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get registerHistoryTitle;
+
+  /// No description provided for @registerHistoryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No register sessions yet.'**
+  String get registerHistoryEmpty;
+
+  /// No description provided for @openRegisterCardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the register'**
+  String get openRegisterCardTitle;
+
+  /// No description provided for @openingFloatLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening float'**
+  String get openingFloatLabel;
+
+  /// No description provided for @openRegisterButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Open register'**
+  String get openRegisterButton;
+
+  /// No description provided for @activeSessionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Register opened {time}'**
+  String activeSessionTitle(String time);
+
+  /// No description provided for @openingFloatSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening float: NT\${amount}'**
+  String openingFloatSummary(String amount);
+
+  /// No description provided for @closeRegisterButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Close register'**
+  String get closeRegisterButton;
+
+  /// No description provided for @recentSalesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent sales'**
+  String get recentSalesTitle;
+
+  /// No description provided for @recentSalesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No sales yet this session.'**
+  String get recentSalesEmpty;
+
+  /// No description provided for @refundedChipLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Refunded'**
+  String get refundedChipLabel;
+
+  /// No description provided for @refundButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund'**
+  String get refundButton;
+
+  /// No description provided for @closeRegisterTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Close register'**
+  String get closeRegisterTitle;
+
+  /// No description provided for @expectedCashLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Expected cash: NT\${amount}'**
+  String expectedCashLabel(String amount);
+
+  /// No description provided for @countedCashLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Counted cash'**
+  String get countedCashLabel;
+
+  /// No description provided for @varianceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Variance: NT\${amount}'**
+  String varianceLabel(String amount);
+
+  /// No description provided for @refundConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Refund this sale?'**
+  String get refundConfirmTitle;
+
+  /// No description provided for @refundConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This restores stock and records a credit note. This cannot be undone.'**
+  String get refundConfirmBody;
+
+  /// No description provided for @checkoutTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Checkout'**
+  String get checkoutTitle;
+
+  /// No description provided for @tenderedAmountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Amount tendered'**
+  String get tenderedAmountLabel;
+
+  /// No description provided for @completeSaleButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete sale'**
+  String get completeSaleButton;
+
+  /// No description provided for @salesAnalysisSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales analysis'**
+  String get salesAnalysisSectionTitle;
+
+  /// No description provided for @salesAnalysisSectionSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily, category, and product sales breakdowns'**
+  String get salesAnalysisSectionSubtitle;
+
+  /// No description provided for @rangeTodayLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get rangeTodayLabel;
+
+  /// No description provided for @range7dLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'7 days'**
+  String get range7dLabel;
+
+  /// No description provided for @range30dLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'30 days'**
+  String get range30dLabel;
+
+  /// No description provided for @rangeAllLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get rangeAllLabel;
+
+  /// No description provided for @dailySalesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily sales'**
+  String get dailySalesLabel;
+
+  /// No description provided for @exportCsvButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Export CSV'**
+  String get exportCsvButton;
+
+  /// No description provided for @salesAnalysisEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No sales in this period.'**
+  String get salesAnalysisEmpty;
+
+  /// No description provided for @salesByCategoryLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales by category'**
+  String get salesByCategoryLabel;
+
+  /// No description provided for @salesByProductLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales by product'**
+  String get salesByProductLabel;
+
+  /// No description provided for @posSettingsSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'POS settings'**
+  String get posSettingsSectionTitle;
+
+  /// No description provided for @posSettingsSectionSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Default tax handling for new products'**
+  String get posSettingsSectionSubtitle;
+
+  /// No description provided for @defaultTaxModeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Prices include tax by default'**
+  String get defaultTaxModeLabel;
+
+  /// No description provided for @standardRateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard tax rate (%)'**
+  String get standardRateLabel;
+
+  /// No description provided for @reducedRateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reduced tax rate (%)'**
+  String get reducedRateLabel;
+
+  /// No description provided for @uncategorizedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Uncategorized'**
+  String get uncategorizedLabel;
 }
 
 class _AppLocalizationsDelegate

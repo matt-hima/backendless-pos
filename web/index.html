@@ -6,19 +6,30 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Offline-first LilyGO ERP simulator">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="manifest" href="app.webmanifest">
+  <meta name="theme-color" content="#0b4f71">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="LilyGO ERP">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>LilyGO ERP</title>
 </head>
 <body>
-  <script src="indexeddb_bridge.js?v=2"></script>
+  <script src="indexeddb_bridge.js?v=5"></script>
   <script src="wallet_crypto_bridge.js?v=2"></script>
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script>
   <script src="local_wallet_bridge.js?v=1"></script>
   <script src="passkey_bridge.js?v=1"></script>
-  <script src="clear_stale_pwa.js?v=1"></script>
-  <script src="webrtc_bridge.js?v=2"></script>
+  <script src="merchant_links_bridge.js?v=1"></script>
+  <script src="clear_stale_pwa.js?v=3"></script>
+  <script src="notification_bridge.js?v=1"></script>
+  <script src="device_qr_bridge.js?v=1"></script>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="webrtc_bridge.js?v=4"></script>
   <script src="print_channel_bridge.js"></script>
   <script src="backup_bridge.js"></script>
+  <script src="google_workspace_bridge.js?v=1"></script>
   <script src="duckdb_bridge.js?v=3"></script>
-  <script src="flutter_bootstrap.js" async></script>
+  <script src="flutter_bootstrap.js?v=pos-parity-2" async></script>
 </body>
 </html>
