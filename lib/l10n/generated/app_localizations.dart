@@ -810,7 +810,7 @@ abstract class AppLocalizations {
   /// No description provided for @navThirdParties.
   ///
   /// In en, this message translates to:
-  /// **'Customers'**
+  /// **'Accounts'**
   String get navThirdParties;
 
   /// No description provided for @navProducts.
@@ -870,7 +870,7 @@ abstract class AppLocalizations {
   /// No description provided for @metricThirdParties.
   ///
   /// In en, this message translates to:
-  /// **'Customers'**
+  /// **'Accounts'**
   String get metricThirdParties;
 
   /// No description provided for @metricProducts.
@@ -894,13 +894,13 @@ abstract class AppLocalizations {
   /// No description provided for @customersSectionTitle.
   ///
   /// In en, this message translates to:
-  /// **'Customers'**
+  /// **'Accounts & contacts'**
   String get customersSectionTitle;
 
   /// No description provided for @customersSectionSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Customer directory'**
+  /// **'SuiteCRM account and contact directory'**
   String get customersSectionSubtitle;
 
   /// No description provided for @colName.
@@ -1716,19 +1716,19 @@ abstract class AppLocalizations {
   /// No description provided for @navLoyalty.
   ///
   /// In en, this message translates to:
-  /// **'Loyalty'**
+  /// **'Memberships'**
   String get navLoyalty;
 
   /// No description provided for @loyaltySectionTitle.
   ///
   /// In en, this message translates to:
-  /// **'Loyalty'**
+  /// **'Memberships & rewards'**
   String get loyaltySectionTitle;
 
   /// No description provided for @loyaltySectionSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Customer points and tiers'**
+  /// **'SuiteCRM accounts, contacts, points, and claims'**
   String get loyaltySectionSubtitle;
 
   /// No description provided for @colWallet.
@@ -1776,7 +1776,7 @@ abstract class AppLocalizations {
   /// No description provided for @loyaltyEmpty.
   ///
   /// In en, this message translates to:
-  /// **'No loyalty accounts yet.'**
+  /// **'No memberships yet.'**
   String get loyaltyEmpty;
 
   /// No description provided for @statusPointsAdjusted.
@@ -1800,19 +1800,19 @@ abstract class AppLocalizations {
   /// No description provided for @bookingsSectionSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Table bookings and status'**
+  /// **'SuiteCRM activities, resources, and booking status'**
   String get bookingsSectionSubtitle;
 
   /// No description provided for @seedMachinesButton.
   ///
   /// In en, this message translates to:
-  /// **'Load sample tables'**
+  /// **'Load sample resources'**
   String get seedMachinesButton;
 
   /// No description provided for @machinesEmpty.
   ///
   /// In en, this message translates to:
-  /// **'No tables yet. Load the sample tables to get started.'**
+  /// **'No resources yet. Load sample resources to get started.'**
   String get machinesEmpty;
 
   /// No description provided for @machineStateIdle.
@@ -1908,13 +1908,13 @@ abstract class AppLocalizations {
   /// No description provided for @clientBookingCardTitle.
   ///
   /// In en, this message translates to:
-  /// **'Book a table'**
+  /// **'Request a booking'**
   String get clientBookingCardTitle;
 
   /// No description provided for @clientBookingMachineLabel.
   ///
   /// In en, this message translates to:
-  /// **'Table'**
+  /// **'Resource'**
   String get clientBookingMachineLabel;
 
   /// No description provided for @clientBookingTimeLabel.

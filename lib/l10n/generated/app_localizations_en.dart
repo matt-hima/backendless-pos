@@ -408,7 +408,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navOverview => 'Overview';
 
   @override
-  String get navThirdParties => 'Customers';
+  String get navThirdParties => 'Accounts';
 
   @override
   String get navProducts => 'Products';
@@ -440,7 +440,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get metricOrders => 'Orders';
 
   @override
-  String get metricThirdParties => 'Customers';
+  String get metricThirdParties => 'Accounts';
 
   @override
   String get metricProducts => 'Products';
@@ -454,10 +454,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get customersSectionTitle => 'Customers';
+  String get customersSectionTitle => 'Accounts & contacts';
 
   @override
-  String get customersSectionSubtitle => 'Customer directory';
+  String get customersSectionSubtitle =>
+      'SuiteCRM account and contact directory';
 
   @override
   String get colName => 'Name';
@@ -936,13 +937,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get statusDataReset => 'All data has been reset';
 
   @override
-  String get navLoyalty => 'Loyalty';
+  String get navLoyalty => 'Memberships';
 
   @override
-  String get loyaltySectionTitle => 'Loyalty';
+  String get loyaltySectionTitle => 'Memberships & rewards';
 
   @override
-  String get loyaltySectionSubtitle => 'Customer points and tiers';
+  String get loyaltySectionSubtitle =>
+      'SuiteCRM accounts, contacts, points, and claims';
 
   @override
   String get colWallet => 'Account';
@@ -966,7 +968,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reasonFieldLabel => 'Reason';
 
   @override
-  String get loyaltyEmpty => 'No loyalty accounts yet.';
+  String get loyaltyEmpty => 'No memberships yet.';
 
   @override
   String get statusPointsAdjusted => 'Points adjusted';
@@ -978,14 +980,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get bookingsSectionTitle => 'Bookings';
 
   @override
-  String get bookingsSectionSubtitle => 'Table bookings and status';
+  String get bookingsSectionSubtitle =>
+      'SuiteCRM activities, resources, and booking status';
 
   @override
-  String get seedMachinesButton => 'Load sample tables';
+  String get seedMachinesButton => 'Load sample resources';
 
   @override
   String get machinesEmpty =>
-      'No tables yet. Load the sample tables to get started.';
+      'No resources yet. Load sample resources to get started.';
 
   @override
   String get machineStateIdle => 'Idle';
@@ -1033,10 +1036,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cancelBookingMenuItem => 'Cancel';
 
   @override
-  String get clientBookingCardTitle => 'Book a table';
+  String get clientBookingCardTitle => 'Request a booking';
 
   @override
-  String get clientBookingMachineLabel => 'Table';
+  String get clientBookingMachineLabel => 'Resource';
 
   @override
   String get clientBookingTimeLabel => 'Time';

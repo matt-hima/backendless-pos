@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:js_util' as js_util;
+import '../data/suitecrm_schema.dart';
 import '../models/order_payload.dart';
 
 class DatabaseService {
@@ -26,6 +27,7 @@ class DatabaseService {
       CREATE TABLE IF NOT EXISTS erp.llx_commande (
         rowid BIGINT PRIMARY KEY, ref VARCHAR NOT NULL, fk_soc BIGINT NOT NULL,
         total_ht DOUBLE, total_ttc DOUBLE,
+        date_livraison DATE,
         fk_statut INTEGER DEFAULT 0,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -144,6 +146,7 @@ class DatabaseService {
       CREATE TABLE IF NOT EXISTS mes.machines (
         id BIGINT PRIMARY KEY, name VARCHAR NOT NULL,
         state VARCHAR NOT NULL DEFAULT 'idle',
+        location_type VARCHAR NOT NULL DEFAULT 'table', capacity INTEGER,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       CREATE TABLE IF NOT EXISTS mes.production_orders (
@@ -195,7 +198,31 @@ class DatabaseService {
         rowid BIGINT PRIMARY KEY, user_id VARCHAR NOT NULL, role_id VARCHAR NOT NULL,
         granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      CREATE SCHEMA IF NOT EXISTS op;
+      CREATE TABLE IF NOT EXISTS op.statuses (
+        id BIGINT PRIMARY KEY, name VARCHAR NOT NULL, is_closed BOOLEAN DEFAULT false,
+        is_default BOOLEAN DEFAULT false, color VARCHAR(8) DEFAULT '#3F7FC7',
+        position INTEGER DEFAULT 0
+      );
+      CREATE TABLE IF NOT EXISTS op.work_packages (
+        id BIGINT PRIMARY KEY, subject VARCHAR NOT NULL, description VARCHAR,
+        status_id BIGINT NOT NULL, priority VARCHAR DEFAULT 'normal',
+        customer_wallet VARCHAR, assigned_worker_id BIGINT, machine_id BIGINT,
+        start_date TIMESTAMP, due_date TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS op.journals (
+        id BIGINT PRIMARY KEY, work_package_id BIGINT NOT NULL, user_wallet VARCHAR,
+        notes VARCHAR, from_status_id BIGINT, to_status_id BIGINT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS op.work_package_participants (
+        id BIGINT PRIMARY KEY, work_package_id BIGINT NOT NULL, wallet VARCHAR NOT NULL,
+        role VARCHAR NOT NULL DEFAULT 'watcher',
+        added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
     ''');
+    await execute(suiteCrmSchema);
     // Keep existing local databases compatible with the product-photo fields.
     for (final statement in [
       'ALTER TABLE erp.llx_product ADD COLUMN photo VARCHAR',
@@ -241,7 +268,16 @@ class DatabaseService {
       'ALTER TABLE erp.llx_product ADD COLUMN IF NOT EXISTS seuil_stock_alerte DOUBLE;',
     );
     await execute(
+      'ALTER TABLE erp.llx_commande ADD COLUMN IF NOT EXISTS date_livraison DATE;',
+    );
+    await execute(
       'ALTER TABLE mes.production_orders ADD COLUMN IF NOT EXISTS worker_id BIGINT;',
+    );
+    await execute(
+      "ALTER TABLE mes.machines ADD COLUMN IF NOT EXISTS location_type VARCHAR DEFAULT 'table';",
+    );
+    await execute(
+      'ALTER TABLE mes.machines ADD COLUMN IF NOT EXISTS capacity INTEGER;',
     );
     await execute('''
       DELETE FROM erp.llx_commandedet WHERE fk_commande IN (SELECT rowid FROM erp.llx_commande WHERE ref LIKE 'MOCK-%');
@@ -250,6 +286,42 @@ class DatabaseService {
     await _seedBuiltinRoles();
     await _seedPaymentTypes();
     await _seedDowntimeReasons();
+    await _seedServiceStatuses();
+    await _seedSuiteCrmRewards();
+  }
+
+  Future<void> _seedSuiteCrmRewards() async {
+    const rewards = [
+      ('breakfast', 'Complimentary breakfast', 'Breakfast for two guests', 100),
+      ('late_checkout', 'Late checkout', 'Checkout extended to 2 PM', 250),
+      ('room_upgrade', 'Room upgrade', 'One-category room upgrade', 500),
+    ];
+    for (final reward in rewards) {
+      await execute('''
+        INSERT INTO suitecrm.rewards (id, name, description, points_cost)
+        VALUES (${_q(reward.$1)}, ${_q(reward.$2)}, ${_q(reward.$3)}, ${reward.$4})
+        ON CONFLICT (id) DO NOTHING;
+      ''');
+    }
+  }
+
+  Future<void> _seedServiceStatuses() async {
+    final existing = await rows('SELECT name FROM op.statuses');
+    if (existing.isNotEmpty) return;
+    const statuses = [
+      ('New', false, true, '#1A67A3'),
+      ('In progress', false, false, '#D9822B'),
+      ('On hold', false, false, '#8091A5'),
+      ('Closed', true, false, '#2E9E5B'),
+    ];
+    for (var i = 0; i < statuses.length; i++) {
+      final (name, isClosed, isDefault, color) = statuses[i];
+      final id = _nextId();
+      await execute('''
+        INSERT INTO op.statuses (id, name, is_closed, is_default, color, position)
+        VALUES ($id, ${_q(name)}, $isClosed, $isDefault, ${_q(color)}, $i);
+      ''');
+    }
   }
 
   Future<void> _seedPaymentTypes() async {
@@ -289,6 +361,7 @@ class DatabaseService {
     'content.manage',
     'loyalty.manage',
     'bookings.manage',
+    'service_events.manage',
     'support.manage',
     'connection.manage',
     'settings.manage',
@@ -305,6 +378,7 @@ class DatabaseService {
       'content.manage',
       'loyalty.manage',
       'bookings.manage',
+      'service_events.manage',
       'support.manage',
       'connection.manage',
     ],
@@ -313,6 +387,7 @@ class DatabaseService {
       'register.use',
       'orders.manage',
       'bookings.manage',
+      'service_events.manage',
       'support.manage',
     ],
   };
@@ -354,18 +429,18 @@ class DatabaseService {
       INSERT INTO erp.llx_socpeople (rowid, fk_soc, firstname, lastname)
       VALUES ($contactId, $companyId, ${_q(payload.contact['firstname'])}, ${_q(payload.contact['lastname'])})
       ON CONFLICT (rowid) DO UPDATE SET fk_soc = EXCLUDED.fk_soc, firstname = EXCLUDED.firstname, lastname = EXCLUDED.lastname, updated_at = now();
-      INSERT INTO erp.llx_commande (rowid, ref, fk_soc, total_ht, total_ttc, fk_statut)
-      VALUES ($orderId, ${_q(payload.order['ref'])}, $companyId, ${payload.order['total_ht']}, ${payload.order['total_ttc']}, 0)
-      ON CONFLICT (rowid) DO UPDATE SET ref = EXCLUDED.ref, fk_soc = EXCLUDED.fk_soc, total_ht = EXCLUDED.total_ht, total_ttc = EXCLUDED.total_ttc, updated_at = now();
+      INSERT INTO erp.llx_commande (rowid, ref, fk_soc, total_ht, total_ttc, date_livraison, fk_statut)
+      VALUES ($orderId, ${_q(payload.order['ref'])}, $companyId, ${payload.order['total_ht']}, ${payload.order['total_ttc']}, ${payload.order['date_livraison'] == null ? 'NULL' : "DATE '${payload.order['date_livraison']}'"}, ${payload.order['fk_statut'] ?? 0})
+      ON CONFLICT (rowid) DO UPDATE SET ref = EXCLUDED.ref, fk_soc = EXCLUDED.fk_soc, total_ht = EXCLUDED.total_ht, total_ttc = EXCLUDED.total_ttc, date_livraison = EXCLUDED.date_livraison, fk_statut = EXCLUDED.fk_statut, updated_at = now();
     ''');
     for (var index = 0; index < payload.lines.length; index++) {
       final line = payload.lines[index];
       final product = Map<String, dynamic>.from(line['product'] as Map);
       final lineId = orderId * 100 + index;
       await execute('''
-        INSERT INTO erp.llx_product (rowid, ref, label, price, tva_tx, stock)
-        VALUES (${product['id']}, ${_q(product['ref'])}, ${_q(product['label'])}, ${product['price']}, ${product['tva_tx']}, ${product['stock']})
-        ON CONFLICT (rowid) DO UPDATE SET ref = EXCLUDED.ref, label = EXCLUDED.label, price = EXCLUDED.price, tva_tx = EXCLUDED.tva_tx, stock = EXCLUDED.stock, updated_at = now();
+        INSERT INTO erp.llx_product (rowid, ref, label, price, tva_tx, stock, fk_product_type)
+        VALUES (${product['id']}, ${_q(product['ref'])}, ${_q(product['label'])}, ${product['price']}, ${product['tva_tx']}, ${product['stock']}, ${product['fk_product_type'] ?? 0})
+        ON CONFLICT (rowid) DO UPDATE SET ref = EXCLUDED.ref, label = EXCLUDED.label, price = EXCLUDED.price, tva_tx = EXCLUDED.tva_tx, stock = EXCLUDED.stock, fk_product_type = EXCLUDED.fk_product_type, updated_at = now();
         INSERT INTO erp.llx_commandedet (rowid, fk_commande, fk_product, qty, subprice, total_ht, total_ttc)
         VALUES ($lineId, $orderId, ${product['id']}, ${line['quantity']}, ${product['price']}, ${line['total_ht']}, ${line['total_ttc']})
         ON CONFLICT (rowid) DO UPDATE SET fk_product = EXCLUDED.fk_product, qty = EXCLUDED.qty, subprice = EXCLUDED.subprice, total_ht = EXCLUDED.total_ht, total_ttc = EXCLUDED.total_ttc;
@@ -465,7 +540,9 @@ class DatabaseService {
       rows('SELECT * FROM erp.llx_categorie WHERE type = 0 ORDER BY label');
 
   Future<void> deleteCategory(int id) async {
-    await execute('DELETE FROM erp.llx_categorie_product WHERE fk_categorie = $id;');
+    await execute(
+      'DELETE FROM erp.llx_categorie_product WHERE fk_categorie = $id;',
+    );
     await execute('DELETE FROM erp.llx_categorie WHERE rowid = $id;');
   }
 
@@ -589,12 +666,57 @@ class DatabaseService {
   ''');
 
   // --- POS sales (Dolibarr llx_facture / llx_facturedet / llx_paiement) ---
+  //
+  // Internal fulfillment routing on checkout (not user-facing wording — the
+  // UI just shows a normal POS sale): a Dolibarr product line
+  // (fk_product_type = 0, "Goods") is checked against on-hand stock with the
+  // same OpenMES-style availability reason codes checkAvailability() uses
+  // for machines/workers, then decremented. A line for fk_product_type = 1
+  // ("Service") instead opens an op.work_packages service event so staff can
+  // carry it through the OpenProject-style New -> In progress -> Closed
+  // state machine.
+
+  // Mirrors checkAvailability()'s {available, reason} shape, but keyed to a
+  // product's on-hand erp.llx_product.stock instead of a schedule window.
+  Future<Map<String, dynamic>> checkStockAvailability({
+    required int productId,
+    required double qty,
+  }) async {
+    final productRows = await rows(
+      'SELECT stock, tosell FROM erp.llx_product WHERE rowid = $productId',
+    );
+    if (productRows.isEmpty) {
+      return {'available': false, 'reason': 'PRODUCT_NOT_FOUND'};
+    }
+    final product = productRows.first;
+    if (product['tosell'] == 0) {
+      return {'available': false, 'reason': 'PRODUCT_DISABLED'};
+    }
+    final stock = (product['stock'] as num).toDouble();
+    if (stock < qty) {
+      return {'available': false, 'reason': 'OUT_OF_STOCK'};
+    }
+    return {'available': true, 'reason': null};
+  }
 
   Future<int> recordPosSale({
     required List<Map<String, dynamic>> lines,
     required String paymentCode,
     int? registerSessionId,
   }) async {
+    for (final line in lines) {
+      final productType = (line['fk_product_type'] as num?)?.toInt() ?? 0;
+      if (productType != 0) continue;
+      final availability = await checkStockAvailability(
+        productId: line['product_id'] as int,
+        qty: line['qty'] as double,
+      );
+      if (availability['available'] != true) {
+        throw Exception(
+          'Stock unavailable for ${line['label']}: ${availability['reason']}',
+        );
+      }
+    }
     final customerId = await ensureWalkInCustomer();
     final factureId = DateTime.now().millisecondsSinceEpoch;
     var totalHt = 0.0;
@@ -622,6 +744,14 @@ class DatabaseService {
         VALUES ($lineId, $factureId, $productId, $qty, ${line['price']}, ${line['tva_tx']}, ${line['total_ht']}, ${line['total_ttc']}, ${_q(line['label'].toString())});
         UPDATE erp.llx_product SET stock = stock - $qty, updated_at = now() WHERE rowid = $productId;
       ''');
+      final productType = (line['fk_product_type'] as num?)?.toInt() ?? 0;
+      if (productType == 1) {
+        await createServiceEvent(
+          subject: line['label'].toString(),
+          description:
+              'From POS sale POS$factureId · qty ${qty.toStringAsFixed(qty.truncateToDouble() == qty ? 0 : 2)}',
+        );
+      }
     }
     final paiementId = DateTime.now().millisecondsSinceEpoch + 1;
     await execute('''
@@ -639,7 +769,8 @@ class DatabaseService {
     GROUP BY 1 ORDER BY 1
   ''');
 
-  Future<List<Map<String, dynamic>>> salesByCategory({DateTime? since}) => rows('''
+  Future<List<Map<String, dynamic>>> salesByCategory({DateTime? since}) =>
+      rows('''
     SELECT COALESCE(cat.label, 'Uncategorized') AS label, SUM(d.total_ttc) AS total, SUM(d.qty) AS qty
     FROM erp.llx_facturedet d
     JOIN erp.llx_facture f ON f.rowid = d.fk_facture
@@ -650,7 +781,8 @@ class DatabaseService {
     GROUP BY 1 ORDER BY total DESC
   ''');
 
-  Future<List<Map<String, dynamic>>> salesByProduct({DateTime? since}) => rows('''
+  Future<List<Map<String, dynamic>>> salesByProduct({DateTime? since}) =>
+      rows('''
     SELECT p.label AS label, SUM(d.total_ttc) AS total, SUM(d.qty) AS qty
     FROM erp.llx_facturedet d
     JOIN erp.llx_facture f ON f.rowid = d.fk_facture
@@ -812,6 +944,10 @@ class DatabaseService {
     'SELECT * FROM erp.llx_product_lang WHERE fk_product = $productId ORDER BY lang',
   );
 
+  Future<List<Map<String, dynamic>>> allProductLangs() => rows(
+    'SELECT fk_product, lang, label, description FROM erp.llx_product_lang ORDER BY fk_product, lang',
+  );
+
   Future<int> ensureCollection(String id) async {
     final existing = await rows(
       'SELECT id FROM cms.collections WHERE id = ${_q(id)}',
@@ -822,38 +958,57 @@ class DatabaseService {
     return 1;
   }
 
+  // WordPress-style post_status: 'draft' until deliberately published, then
+  // 'trash' instead of an immediate hard delete — see setCmsItemStatus.
   Future<void> saveCmsItem({
     int? id,
     required String collection,
     required Map<String, dynamic> data,
+    String status = 'published',
   }) async {
     await ensureCollection(collection);
     final json = _q(jsonEncode(data));
     if (id != null) {
       await execute('''
-        UPDATE cms.items SET data = $json, updated_at = now() WHERE rowid = $id;
+        UPDATE cms.items SET data = $json, status = ${_q(status)}, updated_at = now() WHERE rowid = $id;
       ''');
     } else {
       final itemId = _nextId();
       await execute('''
-        INSERT INTO cms.items (rowid, collection, data) VALUES ($itemId, ${_q(collection)}, $json);
+        INSERT INTO cms.items (rowid, collection, data, status) VALUES ($itemId, ${_q(collection)}, $json, ${_q(status)});
       ''');
     }
+  }
+
+  Future<void> setCmsItemStatus(int id, String status) async {
+    await execute(
+      "UPDATE cms.items SET status = ${_q(status)}, updated_at = now() WHERE rowid = $id;",
+    );
   }
 
   int _idSeq = 0;
   int _nextId() =>
       DateTime.now().millisecondsSinceEpoch * 1000 + (_idSeq++ % 1000);
 
-  Future<List<Map<String, dynamic>>> cmsItems(String collection) async {
+  Future<List<Map<String, dynamic>>> cmsItems(
+    String collection, {
+    String? status,
+  }) async {
     final raw = await rows(
-      "SELECT * FROM cms.items WHERE collection = ${_q(collection)} ORDER BY sort, rowid",
+      "SELECT * FROM cms.items WHERE collection = ${_q(collection)}"
+      "${status == null ? '' : ' AND status = ${_q(status)}'}"
+      " ORDER BY sort, rowid",
     );
     return raw.map((row) {
       final data = Map<String, dynamic>.from(
         jsonDecode(row['data'].toString()) as Map,
       );
-      return {'rowid': row['rowid'], 'collection': row['collection'], ...data};
+      return {
+        'rowid': row['rowid'],
+        'collection': row['collection'],
+        'status': row['status'],
+        ...data,
+      };
     }).toList();
   }
 
@@ -926,6 +1081,107 @@ class DatabaseService {
     );
   }
 
+  Future<String> ensureSuiteCrmMembership(String wallet) async {
+    final accountRows = await rows(
+      'SELECT id FROM suitecrm.accounts WHERE name = ${_q(wallet)} AND deleted = false',
+    );
+    final accountId = accountRows.isNotEmpty
+        ? accountRows.first['id'].toString()
+        : _newId();
+    if (accountRows.isEmpty) {
+      await execute('''
+        INSERT INTO suitecrm.accounts (id, name) VALUES (${_q(accountId)}, ${_q(wallet)});
+      ''');
+    }
+    final contactRows = await rows(
+      'SELECT id FROM suitecrm.contacts WHERE account_id = ${_q(accountId)} AND deleted = false',
+    );
+    final contactId = contactRows.isNotEmpty
+        ? contactRows.first['id'].toString()
+        : _newId();
+    if (contactRows.isEmpty) {
+      await execute('''
+        INSERT INTO suitecrm.contacts (id, account_id, first_name, last_name)
+        VALUES (${_q(contactId)}, ${_q(accountId)}, ${_q('Member')}, ${_q(wallet)});
+      ''');
+    }
+    final membershipRows = await rows(
+      'SELECT id FROM suitecrm.memberships WHERE account_id = ${_q(accountId)} AND deleted = false',
+    );
+    if (membershipRows.isNotEmpty) return membershipRows.first['id'].toString();
+    final membershipId = _newId();
+    await execute('''
+        INSERT INTO suitecrm.memberships
+        (id, account_id, contact_id, membership_number)
+      VALUES (${_q(membershipId)}, ${_q(accountId)}, ${_q(contactId)}, ${_q('LILY-${accountId.substring(0, 8)}')});
+    ''');
+    return membershipId;
+  }
+
+  Future<List<Map<String, dynamic>>> rewards() => rows('''
+    SELECT * FROM suitecrm.rewards
+    WHERE active = true AND deleted = false ORDER BY points_cost, name
+  ''');
+
+  Future<void> awardBookingPoints({
+    required int bookingId,
+    required String wallet,
+    int points = 100,
+  }) async {
+    final booking = await rows(
+      'SELECT id, points_awarded FROM suitecrm.bookings WHERE id = ${_q(bookingId.toString())} AND deleted = false',
+    );
+    if (booking.isEmpty ||
+        ((booking.first['points_awarded'] as num?)?.toInt() ?? 0) > 0) {
+      return;
+    }
+    final membershipId = await ensureSuiteCrmMembership(wallet);
+    await earnPoints(wallet, points, 'Booking BK-$bookingId completed');
+    final ledgerId = _newId();
+    await execute('''
+      INSERT INTO suitecrm.points_ledger
+        (id, membership_id, booking_id, points, transaction_type, description)
+      VALUES (${_q(ledgerId)}, ${_q(membershipId)}, ${_q(bookingId.toString())}, $points,
+        'earn', ${_q('Completed booking')});
+      UPDATE suitecrm.bookings SET points_awarded = $points,
+        status = 'Completed', date_modified = now()
+      WHERE id = ${_q(bookingId.toString())};
+      UPDATE suitecrm.memberships SET points_balance = points_balance + $points,
+        lifetime_points = lifetime_points + $points, date_modified = now()
+      WHERE id = ${_q(membershipId)};
+    ''');
+  }
+
+  Future<void> claimReward({
+    required String wallet,
+    required String rewardId,
+  }) async {
+    final membershipId = await ensureSuiteCrmMembership(wallet);
+    final rewardRows = await rows(
+      'SELECT * FROM suitecrm.rewards WHERE id = ${_q(rewardId)} AND active = true AND deleted = false',
+    );
+    if (rewardRows.isEmpty) throw Exception('Reward not found');
+    final cost = (rewardRows.first['points_cost'] as num).toInt();
+    final membership = await rows(
+      'SELECT points_balance FROM suitecrm.memberships WHERE id = ${_q(membershipId)}',
+    );
+    final balance = (membership.first['points_balance'] as num?)?.toInt() ?? 0;
+    if (balance < cost) throw Exception('Insufficient points balance');
+    final claimId = _newId();
+    await redeemPoints(wallet, cost, 'Claimed ${rewardRows.first['name']}');
+    await execute('''
+      INSERT INTO suitecrm.reward_claims
+        (id, membership_id, reward_id, points_spent)
+      VALUES (${_q(claimId)}, ${_q(membershipId)}, ${_q(rewardId)}, $cost);
+      INSERT INTO suitecrm.points_ledger
+        (id, membership_id, reward_claim_id, points, transaction_type, description)
+      VALUES (${_q(_newId())}, ${_q(membershipId)}, ${_q(claimId)}, -$cost,
+        'redeem', ${_q('Claimed ${rewardRows.first['name']}')});
+      UPDATE suitecrm.memberships SET points_balance = points_balance - $cost,
+        date_modified = now() WHERE id = ${_q(membershipId)};
+    ''');
+  }
+
   Future<void> seedMachines(int count) async {
     final existing = await rows('SELECT COUNT(*) AS c FROM mes.machines');
     var next = ((existing.first['c'] as num?)?.toInt() ?? 0) + 1;
@@ -945,6 +1201,33 @@ class DatabaseService {
     await execute(
       "UPDATE mes.machines SET state = ${_q(state)}, updated_at = now() WHERE id = $id;",
     );
+  }
+
+  // --- Service locations (OpenMES `machines` — a merchant-managed table,
+  // room, or other physical resource that bookings/service events schedule
+  // against) ---
+
+  Future<void> saveMachine({
+    int? id,
+    required String name,
+    String locationType = 'table',
+    int? capacity,
+  }) async {
+    final machineId = id ?? _nextId();
+    await execute('''
+      INSERT INTO mes.machines (id, name, location_type, capacity)
+      VALUES ($machineId, ${_q(name)}, ${_q(locationType)}, ${capacity ?? 'NULL'})
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name, location_type = EXCLUDED.location_type,
+        capacity = EXCLUDED.capacity, updated_at = now();
+    ''');
+  }
+
+  Future<void> deleteMachine(int id) async {
+    await execute(
+      'UPDATE mes.shifts SET machine_id = NULL WHERE machine_id = $id;',
+    );
+    await execute('DELETE FROM mes.machines WHERE id = $id;');
   }
 
   Future<bool> hasOverlap(int machineId, DateTime start, DateTime end) async {
@@ -1034,7 +1317,48 @@ class DatabaseService {
         TIMESTAMP '${start.toIso8601String()}', TIMESTAMP '${end.toIso8601String()}',
         ${workerId ?? 'NULL'});
     ''');
+    final suiteBookingId = id.toString();
+    await ensureSuiteCrmMembership(customerWallet);
+    final accountRows = await rows(
+      'SELECT id FROM suitecrm.accounts WHERE name = ${_q(customerWallet)} AND deleted = false',
+    );
+    final accountId = accountRows.first['id'].toString();
+    final meetingId = _newId();
+    await execute('''
+      INSERT INTO suitecrm.meetings
+        (id, name, date_start, date_end, status, parent_type, parent_id)
+      VALUES (${_q(meetingId)}, ${_q('Booking BK-$id')},
+        TIMESTAMP '${start.toIso8601String()}', TIMESTAMP '${end.toIso8601String()}',
+        'Planned', 'bookings', ${_q(suiteBookingId)});
+      INSERT INTO suitecrm.bookings
+        (id, name, account_id, resource_id, meeting_id, check_in, check_out, status)
+      VALUES (${_q(suiteBookingId)}, ${_q('BK-$id')}, ${_q(accountId)},
+        ${_q(machineId.toString())}, ${_q(meetingId)},
+        TIMESTAMP '${start.toIso8601String()}', TIMESTAMP '${end.toIso8601String()}', 'Planned');
+    ''');
     return id;
+  }
+
+  Future<void> updateBooking({
+    required int id,
+    required int machineId,
+    required int partySize,
+    required DateTime start,
+    required DateTime end,
+    int? workerId,
+  }) async {
+    await execute('''
+      UPDATE mes.production_orders SET
+        machine_id = $machineId, party_size = $partySize,
+        scheduled_start = TIMESTAMP '${start.toIso8601String()}',
+        scheduled_end = TIMESTAMP '${end.toIso8601String()}',
+        worker_id = ${workerId ?? 'NULL'}, updated_at = now()
+      WHERE id = $id;
+    ''');
+  }
+
+  Future<void> deleteBooking(int id) async {
+    await execute('DELETE FROM mes.production_orders WHERE id = $id;');
   }
 
   // --- Workers (OpenMES `workers`) ---
@@ -1103,8 +1427,45 @@ class DatabaseService {
 
   // --- Downtime (OpenMES `downtime_reasons` / `production_downtimes`) ---
 
-  Future<List<Map<String, dynamic>>> downtimeReasons() =>
-      rows('SELECT * FROM mes.downtime_reasons WHERE is_active = true ORDER BY name');
+  Future<List<Map<String, dynamic>>> downtimeReasons() => rows(
+    'SELECT * FROM mes.downtime_reasons WHERE is_active = true ORDER BY name',
+  );
+
+  Future<List<Map<String, dynamic>>> allDowntimeReasons() =>
+      rows('SELECT * FROM mes.downtime_reasons ORDER BY name');
+
+  // `code` carries its own UNIQUE constraint, and DuckDB rejects an
+  // ON CONFLICT ... DO UPDATE that assigns to a uniquely-constrained column
+  // outside the conflict target — so this updates or inserts explicitly
+  // instead of the ON CONFLICT upsert pattern used elsewhere.
+  Future<void> saveDowntimeReason({
+    int? id,
+    required String name,
+    required String code,
+    bool isPlanned = false,
+    bool isActive = true,
+  }) async {
+    if (id != null) {
+      await execute('''
+        UPDATE mes.downtime_reasons SET
+          name = ${_q(name)}, code = ${_q(code)}, is_planned = $isPlanned,
+          is_active = $isActive, updated_at = now()
+        WHERE id = $id;
+      ''');
+    } else {
+      await execute('''
+        INSERT INTO mes.downtime_reasons (id, name, code, is_planned, is_active)
+        VALUES (${_nextId()}, ${_q(name)}, ${_q(code)}, $isPlanned, $isActive);
+      ''');
+    }
+  }
+
+  Future<void> deleteDowntimeReason(int id) async {
+    await execute(
+      'DELETE FROM mes.production_downtimes WHERE downtime_reason_id = $id;',
+    );
+    await execute('DELETE FROM mes.downtime_reasons WHERE id = $id;');
+  }
 
   Future<int> startDowntime({
     required int machineId,
@@ -1167,6 +1528,166 @@ class DatabaseService {
     JOIN mes.downtime_reasons r ON r.id = d.downtime_reason_id
     ORDER BY d.started_at DESC
     LIMIT 100
+  ''');
+
+  // --- Service events & state (schema: OpenProject statuses/work_packages/
+  // journals; a service event is a work_package, its lifecycle state is
+  // status_id, and every state change is journaled for audit history) ---
+
+  Future<List<Map<String, dynamic>>> serviceStatuses() =>
+      rows('SELECT * FROM op.statuses ORDER BY position');
+
+  Future<int> _defaultStatusId() async {
+    final rowsResult = await rows(
+      'SELECT id FROM op.statuses WHERE is_default = true LIMIT 1',
+    );
+    if (rowsResult.isNotEmpty) return (rowsResult.first['id'] as num).toInt();
+    final fallback = await rows(
+      'SELECT id FROM op.statuses ORDER BY position LIMIT 1',
+    );
+    return (fallback.first['id'] as num).toInt();
+  }
+
+  Future<int> createServiceEvent({
+    required String subject,
+    String? description,
+    int? statusId,
+    String priority = 'normal',
+    String? customerWallet,
+    int? assignedWorkerId,
+    int? machineId,
+    DateTime? startDate,
+    DateTime? dueDate,
+    String? userWallet,
+  }) async {
+    // Reuse the OpenMES availability engine so a service event can't double-
+    // book a worker that's already covering a table booking (or another
+    // service event) in the same window.
+    if (assignedWorkerId != null && startDate != null && dueDate != null) {
+      final availability = await checkAvailability(
+        machineId: machineId ?? -1,
+        start: startDate,
+        end: dueDate,
+        workerId: assignedWorkerId,
+      );
+      if (availability['available'] != true) {
+        throw Exception('Worker unavailable: ${availability['reason']}');
+      }
+    }
+    final id = _nextId();
+    final resolvedStatusId = statusId ?? await _defaultStatusId();
+    await execute('''
+      INSERT INTO op.work_packages
+        (id, subject, description, status_id, priority, customer_wallet,
+         assigned_worker_id, machine_id, start_date, due_date)
+      VALUES ($id, ${_q(subject)},
+        ${description == null || description.isEmpty ? 'NULL' : _q(description)},
+        $resolvedStatusId, ${_q(priority)},
+        ${customerWallet == null ? 'NULL' : _q(customerWallet)},
+        ${assignedWorkerId ?? 'NULL'}, ${machineId ?? 'NULL'},
+        ${startDate == null ? 'NULL' : "TIMESTAMP '${startDate.toIso8601String()}'"},
+        ${dueDate == null ? 'NULL' : "TIMESTAMP '${dueDate.toIso8601String()}'"});
+      INSERT INTO op.journals (id, work_package_id, user_wallet, notes, from_status_id, to_status_id)
+      VALUES (${_nextId()}, $id, ${userWallet == null ? 'NULL' : _q(userWallet)},
+        ${_q('Service event created')}, NULL, $resolvedStatusId);
+    ''');
+    if (customerWallet != null && customerWallet.isNotEmpty) {
+      await addServiceEventParticipant(id, customerWallet, role: 'customer');
+    }
+    if (userWallet != null && userWallet.isNotEmpty) {
+      await addServiceEventParticipant(id, userWallet, role: 'creator');
+    }
+    return id;
+  }
+
+  Future<List<Map<String, dynamic>>> serviceEvents({int? statusId}) => rows('''
+    SELECT wp.*, s.name AS status_name, s.is_closed AS status_is_closed, s.color AS status_color
+    FROM op.work_packages wp
+    JOIN op.statuses s ON s.id = wp.status_id
+    ${statusId == null ? '' : 'WHERE wp.status_id = $statusId'}
+    ORDER BY wp.updated_at DESC
+  ''');
+
+  // --- Service event participants (track by participant, wallet-keyed to
+  // line up with the iam.users identity the Keycloak-style role/permission
+  // checks already use) ---
+
+  Future<void> addServiceEventParticipant(
+    int eventId,
+    String wallet, {
+    String role = 'watcher',
+  }) async {
+    await ensureIamUser(wallet);
+    final existing = await rows(
+      'SELECT id FROM op.work_package_participants WHERE work_package_id = $eventId AND wallet = ${_q(wallet)} AND role = ${_q(role)}',
+    );
+    if (existing.isNotEmpty) return;
+    await execute('''
+      INSERT INTO op.work_package_participants (id, work_package_id, wallet, role)
+      VALUES (${_nextId()}, $eventId, ${_q(wallet)}, ${_q(role)});
+    ''');
+  }
+
+  Future<void> removeServiceEventParticipant(
+    int eventId,
+    String wallet, {
+    String? role,
+  }) async {
+    await execute(
+      'DELETE FROM op.work_package_participants '
+      'WHERE work_package_id = $eventId AND wallet = ${_q(wallet)}'
+      '${role == null ? '' : ' AND role = ${_q(role)}'};',
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> serviceEventParticipants(int eventId) =>
+      rows('''
+    SELECT p.*, u.display_name
+    FROM op.work_package_participants p
+    LEFT JOIN iam.users u ON u.id = p.wallet
+    WHERE p.work_package_id = $eventId
+    ORDER BY p.added_at
+  ''');
+
+  Future<List<Map<String, dynamic>>> serviceEventsForParticipant(
+    String wallet,
+  ) => rows('''
+    SELECT DISTINCT wp.*, s.name AS status_name, s.is_closed AS status_is_closed, s.color AS status_color
+    FROM op.work_packages wp
+    JOIN op.statuses s ON s.id = wp.status_id
+    JOIN op.work_package_participants p ON p.work_package_id = wp.id
+    WHERE p.wallet = ${_q(wallet)}
+    ORDER BY wp.updated_at DESC
+  ''');
+
+  Future<void> setServiceEventState(
+    int eventId,
+    int toStatusId, {
+    String? userWallet,
+    String? notes,
+  }) async {
+    final current = await rows(
+      'SELECT status_id FROM op.work_packages WHERE id = $eventId',
+    );
+    if (current.isEmpty) return;
+    final fromStatusId = (current.first['status_id'] as num).toInt();
+    await execute('''
+      UPDATE op.work_packages SET status_id = $toStatusId, updated_at = now()
+      WHERE id = $eventId;
+      INSERT INTO op.journals (id, work_package_id, user_wallet, notes, from_status_id, to_status_id)
+      VALUES (${_nextId()}, $eventId, ${userWallet == null ? 'NULL' : _q(userWallet)},
+        ${notes == null || notes.isEmpty ? 'NULL' : _q(notes)}, $fromStatusId, $toStatusId);
+    ''');
+  }
+
+  Future<List<Map<String, dynamic>>> serviceEventJournal(int eventId) =>
+      rows('''
+    SELECT j.*, fs.name AS from_status_name, ts.name AS to_status_name
+    FROM op.journals j
+    LEFT JOIN op.statuses fs ON fs.id = j.from_status_id
+    LEFT JOIN op.statuses ts ON ts.id = j.to_status_id
+    WHERE j.work_package_id = $eventId
+    ORDER BY j.created_at
   ''');
 
   Future<void> updateBookingStatus(int id, String status) async {
@@ -1304,6 +1825,17 @@ class DatabaseService {
     'cms.items',
     'loyalty.accounts',
     'loyalty.points_transactions',
+    'suitecrm.accounts',
+    'suitecrm.contacts',
+    'suitecrm.meetings',
+    'suitecrm.meetings_contacts',
+    'suitecrm.aos_products',
+    'suitecrm.aos_products_quotes',
+    'suitecrm.memberships',
+    'suitecrm.bookings',
+    'suitecrm.points_ledger',
+    'suitecrm.rewards',
+    'suitecrm.reward_claims',
     'mes.machines',
     'mes.production_orders',
     'mes.workers',
@@ -1314,6 +1846,10 @@ class DatabaseService {
     'iam.roles',
     'iam.role_permissions',
     'iam.user_role_mapping',
+    'op.statuses',
+    'op.work_packages',
+    'op.journals',
+    'op.work_package_participants',
   ];
 
   Future<Map<String, dynamic>> dumpAll() async {

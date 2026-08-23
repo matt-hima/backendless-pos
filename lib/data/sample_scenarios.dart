@@ -1,3 +1,11 @@
+Map<String, String> _demoLabels(String label) => {
+  'en': label,
+  'ja': '$label（日本語デモ）',
+  'zh-Hant': '$label（繁中示範）',
+  'pt': '$label（demonstração PT）',
+  'es': '$label（demo ES）',
+};
+
 Map<String, dynamic> _sampleItem(
   int id,
   String ref,
@@ -9,7 +17,7 @@ Map<String, dynamic> _sampleItem(
   'id': id,
   'ref': ref,
   'label': label,
-  'labels': {'en': label},
+  'labels': _demoLabels(label),
   'price': price,
   'tva_tx': 10.0,
   'stock': 50.0,

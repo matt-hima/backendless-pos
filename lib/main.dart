@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:html' as html;
 import 'dart:js_util' as js_util;
+import 'dart:ui_web' as ui_web;
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'l10n/generated/app_localizations.dart';
@@ -124,6 +126,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
   late final ApiService api;
   StreamSubscription<OrderPayload>? subscription;
   Timer? _rtcPollTimer;
+  Timer? _demoOrderTimer;
   String status = '';
   List<Map<String, dynamic>> productRows = [];
   List<Map<String, dynamic>> customerRows = [];
@@ -139,6 +142,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
   int clientTransactionCount = 0;
   double clientTransactionTotal = 0;
   bool walletInitialized = false;
+  bool localMemberAvailable = false;
   int portalSection = 0;
   String walletMobile = '';
   String walletBirthday = '';
@@ -159,14 +163,17 @@ class _LilyGoAppState extends State<LilyGoApp> {
   final _clientCatalogKey = GlobalKey();
   List<Map<String, dynamic>> menuContentItems = [];
   List<Map<String, dynamic>> loyaltyAccounts = [];
+  List<Map<String, dynamic>> rewards = [];
   List<Map<String, dynamic>> machinesList = [];
   List<Map<String, dynamic>> bookingsList = [];
   List<Map<String, dynamic>> workersList = [];
   List<Map<String, dynamic>> shiftsList = [];
   List<Map<String, dynamic>> downtimeReasonsList = [];
+  List<Map<String, dynamic>> allDowntimeReasonsList = [];
   List<Map<String, dynamic>> activeDowntimesList = [];
   List<Map<String, dynamic>> downtimeHistoryList = [];
   String bookingsView = 'bookings';
+  String contentStatusFilter = 'all';
   List<Map<String, dynamic>> clientBookings = [];
   Set<String> myPermissions = {};
   List<Map<String, dynamic>> iamUsersList = [];
@@ -188,6 +195,12 @@ class _LilyGoAppState extends State<LilyGoApp> {
   List<Map<String, dynamic>> dailySalesRows = [];
   List<Map<String, dynamic>> salesByCategoryRows = [];
   List<Map<String, dynamic>> salesByProductRows = [];
+  bool showDemoClientFrame = false;
+  bool demoSimulationEnabled = false;
+  bool _demoFrameRegistered = false;
+  late final String _demoFrameViewType =
+      'lilygo-demo-client-${identityHashCode(this)}';
+  html.IFrameElement? _demoFrame;
 
   AppLocalizations get _l => AppLocalizations.of(navigatorKey.currentContext!);
 
@@ -195,6 +208,16 @@ class _LilyGoAppState extends State<LilyGoApp> {
   void initState() {
     super.initState();
     api = ApiService();
+    if (!_isPortalRoute() && Uri.base.queryParameters['demo'] == '1') {
+      walletAddress = 'demo-mode';
+      localMemberAvailable = true;
+      if (Uri.base.queryParameters['simulate'] == '1') {
+        _demoOrderTimer = Timer.periodic(
+          const Duration(seconds: 15),
+          (_) => _submitDemoClientOrder(),
+        );
+      }
+    }
     _initializeWebRtc();
     _startClient();
     if (_isPortalRoute()) _start();
@@ -227,6 +250,12 @@ class _LilyGoAppState extends State<LilyGoApp> {
       });
     if (Uri.base.queryParameters['demo'] == '1') {
       if (mounted) setState(() => clientProducts = _demoClientProducts());
+    }
+    try {
+      final hasLocalWallet = await localWallet.hasWallet();
+      if (mounted) setState(() => localMemberAvailable = hasLocalWallet);
+    } catch (_) {
+      // Wallet detection is optional; the normal registration flow remains available.
     }
     try {
       await Future.any([
@@ -314,6 +343,14 @@ class _LilyGoAppState extends State<LilyGoApp> {
     return labels?[code]?.toString() ?? product['label']?.toString() ?? '';
   }
 
+  String _localizedProductDescription(Map<String, dynamic> product) {
+    final descriptions = product['descriptions'] as Map?;
+    final code = _localeCode(currentLocale);
+    return descriptions?[code]?.toString() ??
+        product['description']?.toString() ??
+        '';
+  }
+
   Future<void> _start() async {
     if (databaseStarted) return;
     databaseStarted = true;
@@ -351,7 +388,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
         'SELECT rowid, nom, code_client, email, updated_at FROM erp.llx_societe WHERE is_merchant = false ORDER BY rowid DESC',
       ),
       db.rows(
-        'SELECT c.rowid, c.ref, c.fk_statut, s.nom AS customer, p.label AS product, d.qty, d.subprice, d.total_ht, d.total_ttc FROM erp.llx_commande c JOIN erp.llx_societe s ON s.rowid = c.fk_soc JOIN erp.llx_commandedet d ON d.fk_commande = c.rowid JOIN erp.llx_product p ON p.rowid = d.fk_product ORDER BY c.rowid DESC',
+        'SELECT c.rowid, c.ref, c.fk_statut, c.date_livraison, s.nom AS customer, p.label AS product, d.qty, d.subprice, d.total_ht, d.total_ttc FROM erp.llx_commande c JOIN erp.llx_societe s ON s.rowid = c.fk_soc JOIN erp.llx_commandedet d ON d.fk_commande = c.rowid JOIN erp.llx_product p ON p.rowid = d.fk_product ORDER BY c.rowid DESC',
       ),
       db.categories(),
       db.paymentTypes(),
@@ -565,6 +602,15 @@ class _LilyGoAppState extends State<LilyGoApp> {
         photoMime: imageAsset == null ? null : 'image/jpeg',
         categoryId: categoryId,
       );
+      final labels = (product['labels'] as Map?) ?? const {};
+      for (final entry in labels.entries) {
+        await db.saveProductLang(
+          productId: product['id'] as int,
+          lang: entry.key.toString(),
+          label: entry.value?.toString(),
+          description: product['description']?.toString(),
+        );
+      }
     }
     await _refresh();
     await _saveSiteContentBatch([
@@ -915,6 +961,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
     if (mounted)
       setState(() {
         walletAddress = address;
+        localMemberAvailable = true;
         walletInitialized = true;
         status = _l.statusAccountConnected(_shortWallet(address));
         if (_isPortalRoute()) {
@@ -1400,7 +1447,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(product['description']?.toString() ?? ''),
+              Text(_localizedProductDescription(product)),
               const SizedBox(height: 16),
               if (variations.isNotEmpty) ...[
                 DropdownButtonFormField<String>(
@@ -1479,7 +1526,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
     });
   }
 
-  Future<void> _submitClientOrder() async {
+  Future<void> _submitClientOrder({bool demo = false}) async {
     final lines = <Map<String, dynamic>>[];
     var total = 0.0;
     for (final product in clientProducts) {
@@ -1500,7 +1547,11 @@ class _LilyGoAppState extends State<LilyGoApp> {
       });
     }
     if (lines.isEmpty) return;
-    if (!await _confirmClientInvoice(lines, total)) return;
+    final isPreorder = lines.any(
+      (line) =>
+          _clientProductIsPreorder(line['product'] as Map<String, dynamic>),
+    );
+    if (!demo && !await _confirmClientInvoice(lines, total)) return;
     if (walletAddress == null) await _connectWallet();
     if (walletAddress == null) return;
     final transactionId = DateTime.now().millisecondsSinceEpoch;
@@ -1521,6 +1572,16 @@ class _LilyGoAppState extends State<LilyGoApp> {
         'ref': 'WEB-$transactionId',
         'total_ht': total,
         'total_ttc': total * 1.05,
+        'fk_statut': isPreorder ? 1 : 0,
+        'date_livraison': isPreorder
+            ? DateTime.now()
+                  .add(const Duration(days: 30))
+                  .toIso8601String()
+                  .split('T')
+                  .first
+            : null,
+        'is_preorder': isPreorder,
+        'is_demo': demo,
       },
       'thirdparty': {
         'id': member['rowid'],
@@ -1533,14 +1594,21 @@ class _LilyGoAppState extends State<LilyGoApp> {
       'lines': lines,
       'created_at': DateTime.now().toIso8601String(),
     };
-    final encryptedPayload = await walletCrypto.encrypt(payload);
-    await indexedDb.saveEncryptedTransaction(
-      id: transactionId,
-      channel: activeChannel,
-      wallet: walletAddress!,
-      encryptedPayload: encryptedPayload,
-    );
-    await _loadClientStats();
+    final encryptedPayload = demo
+        ? 'demo:${jsonEncode(payload)}'
+        : await walletCrypto.encrypt(payload);
+    try {
+      await indexedDb.saveEncryptedTransaction(
+        id: transactionId,
+        channel: activeChannel,
+        wallet: walletAddress!,
+        encryptedPayload: encryptedPayload,
+      );
+      await _loadClientStats();
+    } catch (error) {
+      if (!demo) rethrow;
+      if (mounted) setState(() => status = 'Demo cache skipped; sending order');
+    }
     _sendRtcMessage({'type': 'client_order', 'payload': payload});
     _sendRtcMessage({
       'type': 'loyalty_earn',
@@ -1552,12 +1620,23 @@ class _LilyGoAppState extends State<LilyGoApp> {
     if (mounted)
       setState(() {
         cart.clear();
-        status = l.statusOrderSaved('WEB-$transactionId');
+        status = demo
+            ? 'Demo order sent: WEB-$transactionId'
+            : l.statusOrderSaved('WEB-$transactionId');
       });
     if (mounted)
       ScaffoldMessenger.of(
         navigatorKey.currentContext!,
       ).showSnackBar(SnackBar(content: Text(l.orderSavedSnackbar)));
+  }
+
+  Future<void> _submitDemoClientOrder() async {
+    if (_isPortalRoute() || walletAddress != 'demo-mode') return;
+    if (clientProducts.isEmpty) return;
+    final product = clientProducts.first;
+    final productId = _clientProductId(product);
+    if (mounted) setState(() => cart[productId] = 1);
+    await _submitClientOrder(demo: true);
   }
 
   Future<bool> _confirmClientInvoice(
@@ -1630,6 +1709,12 @@ class _LilyGoAppState extends State<LilyGoApp> {
   String _shortWallet(String address) => address.length > 12
       ? '${address.substring(0, 6)}…${address.substring(address.length - 4)}'
       : address;
+
+  bool _clientProductIsPreorder(Map<String, dynamic> product) {
+    final productType = (product['fk_product_type'] as num?)?.toInt() ?? 0;
+    final stock = (product['stock'] as num?)?.toDouble() ?? 0;
+    return productType == 0 && stock <= 0;
+  }
 
   Future<void> _createChannel() async {
     final l = _l;
@@ -1864,6 +1949,22 @@ class _LilyGoAppState extends State<LilyGoApp> {
   Future<void> _syncDemoClientPreview() async {
     try {
       await indexedDb.initialize().timeout(const Duration(seconds: 3));
+      final productLangs = await db.allProductLangs();
+      final labelsByProduct = <int, Map<String, String>>{};
+      final descriptionsByProduct = <int, Map<String, String>>{};
+      for (final translation in productLangs) {
+        final productId = (translation['fk_product'] as num).toInt();
+        final lang = translation['lang']?.toString();
+        if (lang == null) continue;
+        final label = translation['label']?.toString();
+        final description = translation['description']?.toString();
+        if (label != null && label.isNotEmpty) {
+          (labelsByProduct[productId] ??= {})[lang] = label;
+        }
+        if (description != null && description.isNotEmpty) {
+          (descriptionsByProduct[productId] ??= {})[lang] = description;
+        }
+      }
       final products = productRows
           .where(
             (product) => product['tosell'] == null || product['tosell'] != 0,
@@ -1874,6 +1975,11 @@ class _LilyGoAppState extends State<LilyGoApp> {
               'rowid': product['rowid'] ?? product['id'],
               'category': product['category_label'] ?? _l.uncategorizedLabel,
               'description': product['description'] ?? product['label'],
+              'labels':
+                  labelsByProduct[(product['rowid'] as num).toInt()] ?? {},
+              'descriptions':
+                  descriptionsByProduct[(product['rowid'] as num).toInt()] ??
+                  {},
             },
           )
           .where((product) => product['rowid'] != null)
@@ -1895,11 +2001,18 @@ class _LilyGoAppState extends State<LilyGoApp> {
       builder: (_) => _CmsItemDialog(row: row),
     );
     if (result == null) return;
+    final itemStatus = result.remove('status') as String? ?? 'draft';
     await db.saveCmsItem(
       id: row?['rowid'] as int?,
       collection: 'site_content',
       data: result,
+      status: itemStatus,
     );
+    await _refreshMenuContent();
+  }
+
+  Future<void> _setMenuContentItemStatus(int rowid, String status) async {
+    await db.setCmsItemStatus(rowid, status);
     await _refreshMenuContent();
   }
 
@@ -2019,6 +2132,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
       db.downtimeReasons(),
       db.activeDowntimes(),
       db.downtimeHistory(),
+      db.allDowntimeReasons(),
     ]);
     if (mounted)
       setState(() {
@@ -2029,6 +2143,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
         downtimeReasonsList = data[4];
         activeDowntimesList = data[5];
         downtimeHistoryList = data[6];
+        allDowntimeReasonsList = data[7];
       });
     _sendRtcMessage({
       'type': 'booking_machines',
@@ -2044,6 +2159,26 @@ class _LilyGoAppState extends State<LilyGoApp> {
 
   Future<void> _setMachineStateAction(int id, String state) async {
     await db.setMachineState(id, state);
+    await _refreshBookings();
+  }
+
+  Future<void> _editLocation([Map<String, dynamic>? row]) async {
+    final result = await showDialog<_LocationDraft>(
+      context: navigatorKey.currentContext!,
+      builder: (_) => _LocationDialog(row: row),
+    );
+    if (result == null) return;
+    await db.saveMachine(
+      id: row?['id'] as int?,
+      name: result.name,
+      locationType: result.locationType,
+      capacity: result.capacity,
+    );
+    await _refreshBookings();
+  }
+
+  Future<void> _deleteLocation(int id) async {
+    await db.deleteMachine(id);
     await _refreshBookings();
   }
 
@@ -2181,6 +2316,10 @@ class _LilyGoAppState extends State<LilyGoApp> {
     );
     final wallet = booking['customer_wallet']?.toString();
     if (wallet != null && wallet.isNotEmpty) {
+      if (status == 'completed') {
+        await db.awardBookingPoints(bookingId: id, wallet: wallet);
+        await _refreshLoyalty();
+      }
       _sendRtcMessage({
         'type': 'booking_status',
         'id': id,
@@ -2191,6 +2330,80 @@ class _LilyGoAppState extends State<LilyGoApp> {
         'end': booking['scheduled_end']?.toString(),
       });
     }
+  }
+
+  Future<void> _editBooking([Map<String, dynamic>? booking]) async {
+    if (machinesList.isEmpty) return;
+    final result = await showDialog<_BookingDraft>(
+      context: navigatorKey.currentContext!,
+      builder: (_) => _BookingDialog(
+        row: booking,
+        machines: machinesList,
+        workers: workersList,
+      ),
+    );
+    if (result == null) return;
+    if (booking == null) {
+      final availability = await db.checkAvailability(
+        machineId: result.machineId,
+        start: result.start,
+        end: result.end,
+        workerId: result.workerId,
+      );
+      if (availability['available'] != true) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(navigatorKey.currentContext!).showSnackBar(
+          SnackBar(
+            content: Text('Booking unavailable: ${availability['reason']}'),
+          ),
+        );
+        return;
+      }
+      await db.createBooking(
+        machineId: result.machineId,
+        customerWallet: 'walk-in',
+        partySize: result.partySize,
+        start: result.start,
+        end: result.end,
+        workerId: result.workerId,
+      );
+    } else {
+      await db.updateBooking(
+        id: booking['id'] as int,
+        machineId: result.machineId,
+        partySize: result.partySize,
+        start: result.start,
+        end: result.end,
+        workerId: result.workerId,
+      );
+    }
+    await _refreshBookings();
+  }
+
+  Future<void> _deleteBookingAction(int id) async {
+    await db.deleteBooking(id);
+    await _refreshBookings();
+  }
+
+  Future<void> _editDowntimeReason([Map<String, dynamic>? row]) async {
+    final result = await showDialog<_DowntimeReasonDraft>(
+      context: navigatorKey.currentContext!,
+      builder: (_) => _DowntimeReasonDialog(row: row),
+    );
+    if (result == null) return;
+    await db.saveDowntimeReason(
+      id: row?['id'] as int?,
+      name: result.name,
+      code: result.code,
+      isPlanned: result.isPlanned,
+      isActive: result.isActive,
+    );
+    await _refreshBookings();
+  }
+
+  Future<void> _deleteDowntimeReasonAction(int id) async {
+    await db.deleteDowntimeReason(id);
+    await _refreshBookings();
   }
 
   Future<void> _refreshIam() async {
@@ -2420,8 +2633,59 @@ class _LilyGoAppState extends State<LilyGoApp> {
   }
 
   Future<void> _refreshLoyalty() async {
-    final accounts = await db.loyaltyAccounts();
-    if (mounted) setState(() => loyaltyAccounts = accounts);
+    final results = await Future.wait([db.loyaltyAccounts(), db.rewards()]);
+    if (mounted) {
+      setState(() {
+        loyaltyAccounts = results[0];
+        rewards = results[1];
+      });
+    }
+  }
+
+  Future<void> _claimReward(Map<String, dynamic> account) async {
+    if (rewards.isEmpty) return;
+    var selected = rewards.first['id'].toString();
+    final wallet = account['contact_wallet'].toString();
+    final chosen = await showDialog<String>(
+      context: navigatorKey.currentContext!,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Claim reward'),
+          content: DropdownButtonFormField<String>(
+            initialValue: selected,
+            decoration: const InputDecoration(labelText: 'Reward'),
+            items: rewards.map((reward) {
+              return DropdownMenuItem(
+                value: reward['id'].toString(),
+                child: Text(
+                  '${reward['name']} · ${reward['points_cost']} points',
+                ),
+              );
+            }).toList(),
+            onChanged: (value) =>
+                setDialogState(() => selected = value ?? selected),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(_l.cancelButton),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, selected),
+              child: const Text('Claim'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (chosen == null) return;
+    try {
+      await db.claimReward(wallet: wallet, rewardId: chosen);
+      await _refreshLoyalty();
+      if (mounted) setState(() => status = 'Reward claimed');
+    } catch (error) {
+      if (mounted) setState(() => status = error.toString());
+    }
   }
 
   Future<void> _adjustPoints(Map<String, dynamic> account) async {
@@ -2919,6 +3183,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
   void dispose() {
     subscription?.cancel();
     _rtcPollTimer?.cancel();
+    _demoOrderTimer?.cancel();
     clientChatController.dispose();
     serviceReplyController.dispose();
     _clientScrollController.dispose();
@@ -3129,7 +3394,9 @@ class _LilyGoAppState extends State<LilyGoApp> {
   }
 
   Future<void> _publishCmsCollection(String collection) async {
-    final items = await db.cmsItems(collection);
+    // WordPress parity: only status = 'published' items go live. Drafts stay
+    // visible in the admin list but never reach the synced client site.
+    final items = await db.cmsItems(collection, status: 'published');
     _sendRtcMessage({
       'type': 'cms_sync',
       'collection': collection,
@@ -3141,18 +3408,38 @@ class _LilyGoAppState extends State<LilyGoApp> {
   Future<void> _sendClientMenuSnapshot(String targetPeerId) async {
     final products = await db.rows('''
       SELECT p.rowid, p.ref, p.label, p.price, p.tva_tx, p.photo, p.photo_mime, p.stock,
+             p.fk_product_type,
              c.label AS category_label
       FROM erp.llx_product p
       LEFT JOIN erp.llx_categorie_product cp ON cp.fk_product = p.rowid
       LEFT JOIN erp.llx_categorie c ON c.rowid = cp.fk_categorie
       ORDER BY p.rowid
     ''');
+    final productLangs = await db.allProductLangs();
+    final labelsByProduct = <int, Map<String, String>>{};
+    final descriptionsByProduct = <int, Map<String, String>>{};
+    for (final translation in productLangs) {
+      final productId = (translation['fk_product'] as num).toInt();
+      final lang = translation['lang']?.toString();
+      if (lang == null) continue;
+      final label = translation['label']?.toString();
+      final description = translation['description']?.toString();
+      if (label != null && label.isNotEmpty) {
+        (labelsByProduct[productId] ??= {})[lang] = label;
+      }
+      if (description != null && description.isNotEmpty) {
+        (descriptionsByProduct[productId] ??= {})[lang] = description;
+      }
+    }
     final items = products.map((product) {
+      final productId = (product['rowid'] as num).toInt();
       return {
         ...product,
         'rowid': product['rowid'],
         'category': product['category_label'] ?? _l.uncategorizedLabel,
         'description': product['label'],
+        'labels': labelsByProduct[productId] ?? {},
+        'descriptions': descriptionsByProduct[productId] ?? {},
       };
     }).toList();
     _sendRtcMessage({
@@ -3178,8 +3465,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
   }
 
   Future<void> _openClientConnection() async {
-    final offerController = TextEditingController();
-    final answerController = TextEditingController();
+    final linkController = TextEditingController();
     var message = '';
     try {
       await showDialog<void>(
@@ -3193,24 +3479,14 @@ class _LilyGoAppState extends State<LilyGoApp> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Paste the pairing code from the store portal.'),
+                  const Text('Paste the store link generated by the merchant.'),
                   const SizedBox(height: 12),
                   TextField(
-                    controller: offerController,
-                    minLines: 4,
-                    maxLines: 7,
+                    controller: linkController,
+                    minLines: 1,
+                    maxLines: 3,
                     decoration: const InputDecoration(
-                      labelText: 'Pairing code',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: answerController,
-                    minLines: 4,
-                    maxLines: 7,
-                    decoration: const InputDecoration(
-                      labelText: 'Response to send back',
+                      labelText: 'Store link',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -3229,27 +3505,45 @@ class _LilyGoAppState extends State<LilyGoApp> {
               FilledButton(
                 onPressed: () async {
                   try {
-                    final answer = await webRtc.acceptOffer(
-                      offerController.text.trim(),
+                    final raw = linkController.text.trim();
+                    final parsed = Uri.tryParse(raw);
+                    final channel =
+                        parsed?.queryParameters['channel'] ??
+                        (raw.startsWith('channel=')
+                            ? raw.substring('channel='.length)
+                            : null);
+                    if (channel == null || channel.trim().isEmpty) {
+                      setDialogState(
+                        () => message = 'Paste a valid merchant store link.',
+                      );
+                      return;
+                    }
+                    activeChannel = channel.trim();
+                    merchantLinks.save(channel: activeChannel, link: raw);
+                    await webRtc.initialize(
+                      portal: false,
+                      channel: activeChannel,
                     );
-                    answerController.text = answer;
-                    setDialogState(
-                      () => message =
-                          'Response ready. Send it back to the portal.',
-                    );
+                    if (mounted) {
+                      setState(() {
+                        clientProducts = [];
+                        clientSiteContent = [];
+                        rtcStatus = 'connecting';
+                      });
+                    }
+                    if (dialogContext.mounted) Navigator.pop(dialogContext);
                   } catch (error) {
                     setDialogState(() => message = 'Pairing failed: $error');
                   }
                 },
-                child: const Text('Create response'),
+                child: const Text('Connect to store'),
               ),
             ],
           ),
         ),
       );
     } finally {
-      offerController.dispose();
-      answerController.dispose();
+      linkController.dispose();
     }
   }
 
@@ -3477,6 +3771,24 @@ class _LilyGoAppState extends State<LilyGoApp> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Chip(label: Text(_shortWallet(walletAddress!))),
+              )
+            else if (localMemberAvailable)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: ActionChip(
+                  avatar: const Icon(Icons.verified_user_outlined, size: 18),
+                  label: const Text('Member registered'),
+                  onPressed: _connectWallet,
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: OutlinedButton.icon(
+                  onPressed: _connectWallet,
+                  icon: const Icon(Icons.person_add_alt_1_outlined),
+                  label: const Text('Register member'),
+                ),
               ),
             IconButton(
               onPressed: _openClientConnection,
@@ -3895,7 +4207,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
                 child: Text(label.isNotEmpty ? label.substring(0, 1) : '?'),
               ),
               title: Text(label),
-              subtitle: Text(product['description']?.toString() ?? ''),
+              subtitle: Text(_localizedProductDescription(product)),
               trailing: SizedBox(
                 width: 120,
                 child: Row(
@@ -3941,7 +4253,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
                 ),
               ),
               Text(
-                product['description']?.toString() ?? '',
+                _localizedProductDescription(product),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -3949,6 +4261,8 @@ class _LilyGoAppState extends State<LilyGoApp> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  if (_clientProductIsPreorder(product))
+                    const Chip(label: Text('Pre-order')),
                   Text('NT\$${_number(_clientProductPrice(product))}'),
                   if (quantity > 0) Badge(label: Text('$quantity')),
                 ],
@@ -4444,37 +4758,137 @@ class _LilyGoAppState extends State<LilyGoApp> {
         const SizedBox(height: 8),
         Text(status, style: Theme.of(context).textTheme.bodyLarge),
         const SizedBox(height: 24),
-        Wrap(
-          spacing: 16,
-          runSpacing: 16,
-          children: [
-            _Metric(
-              label: l.metricOrders,
-              value: '${_orderGroups().length}',
-              icon: Icons.receipt_long,
+        if (walletAddress == 'demo-mode')
+          _TwoColumn(
+            left: _overviewSummary(l, context),
+            right: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Demo client connection',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Open the real storefront in an iframe and send dummy orders through the live WebRTC channel.',
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        FilledButton.icon(
+                          onPressed: () => setState(() {
+                            showDemoClientFrame = !showDemoClientFrame;
+                          }),
+                          icon: const Icon(Icons.web_asset_outlined),
+                          label: Text(
+                            showDemoClientFrame
+                                ? 'Hide demo client'
+                                : 'Open demo client',
+                          ),
+                        ),
+                        FilterChip(
+                          selected: demoSimulationEnabled,
+                          onSelected: (enabled) => setState(() {
+                            demoSimulationEnabled = enabled;
+                            _updateDemoFrameSource();
+                          }),
+                          avatar: const Icon(Icons.bolt_outlined),
+                          label: const Text('Simulate orders'),
+                        ),
+                      ],
+                    ),
+                    if (showDemoClientFrame) ...[
+                      const SizedBox(height: 14),
+                      SizedBox(height: 720, child: _demoClientFrame()),
+                    ],
+                  ],
+                ),
+              ),
             ),
-            _Metric(
-              label: l.metricThirdParties,
-              value: '${customerRows.length}',
-              icon: Icons.business,
-            ),
-            _Metric(
-              label: l.metricProducts,
-              value: '${productRows.length}',
-              icon: Icons.inventory_2,
-            ),
-          ],
-        ),
-        const SizedBox(height: 28),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.cloud_off),
-            title: Text(l.storageCardTitle),
-            subtitle: Text(l.storageCardSubtitle(activeChannel)),
-          ),
-        ),
+          )
+        else
+          _overviewSummary(l, context),
       ],
     );
+  }
+
+  Widget _overviewSummary(AppLocalizations l, BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Wrap(
+        spacing: 16,
+        runSpacing: 16,
+        children: [
+          _Metric(
+            label: l.metricOrders,
+            value: '${_orderGroups().length}',
+            icon: Icons.receipt_long,
+          ),
+          _Metric(
+            label: l.metricThirdParties,
+            value: '${customerRows.length}',
+            icon: Icons.business,
+          ),
+          _Metric(
+            label: l.metricProducts,
+            value: '${productRows.length}',
+            icon: Icons.inventory_2,
+          ),
+        ],
+      ),
+      const SizedBox(height: 28),
+      Card(
+        child: ListTile(
+          leading: const Icon(Icons.cloud_off),
+          title: Text(l.storageCardTitle),
+          subtitle: Text(l.storageCardSubtitle(activeChannel)),
+        ),
+      ),
+    ],
+  );
+
+  String _demoClientUrl() {
+    final uri = Uri(
+      scheme: Uri.base.scheme,
+      host: Uri.base.host,
+      port: Uri.base.hasPort ? Uri.base.port : null,
+      path: '/',
+      queryParameters: {
+        'demo': '1',
+        'channel': activeChannel,
+        'embedded': '1',
+        if (demoSimulationEnabled) 'simulate': '1',
+      },
+    );
+    return uri.toString();
+  }
+
+  void _updateDemoFrameSource() {
+    if (_demoFrame != null) _demoFrame!.src = _demoClientUrl();
+  }
+
+  Widget _demoClientFrame() {
+    if (!_demoFrameRegistered) {
+      _demoFrame = html.IFrameElement()
+        ..style.border = '1px solid #CBD5E1'
+        ..style.borderRadius = '12px'
+        ..style.width = '100%'
+        ..style.height = '100%'
+        ..src = _demoClientUrl();
+      ui_web.platformViewRegistry.registerViewFactory(
+        _demoFrameViewType,
+        (int viewId) => _demoFrame!,
+      );
+      _demoFrameRegistered = true;
+    } else {
+      _updateDemoFrameSource();
+    }
+    return HtmlElementView(viewType: _demoFrameViewType);
   }
 
   Map<String, dynamic>? _productById(int id) {
@@ -4505,6 +4919,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
         'tva_tx': taxRate,
         'total_ht': lineHt,
         'total_ttc': lineTtc,
+        'fk_product_type': (product['fk_product_type'] as num?)?.toInt() ?? 0,
       });
     }
     return lines;
@@ -4759,11 +5174,19 @@ class _LilyGoAppState extends State<LilyGoApp> {
           _CheckoutDialog(total: total, paymentTypes: paymentTypeRows),
     );
     if (result == null) return;
-    await db.recordPosSale(
-      lines: lines,
-      paymentCode: result.paymentCode,
-      registerSessionId: activeRegisterSession!['rowid'] as int,
-    );
+    try {
+      await db.recordPosSale(
+        lines: lines,
+        paymentCode: result.paymentCode,
+        registerSessionId: activeRegisterSession!['rowid'] as int,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(navigatorKey.currentContext!).showSnackBar(
+        SnackBar(content: Text('Sale could not be completed: $error')),
+      );
+      return;
+    }
     setState(() => registerCart.clear());
     await _refresh();
     if (!mounted) return;
@@ -5413,6 +5836,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
               l.colReference,
               l.colLabel,
               l.colCategory,
+              'Type',
               l.colBarcode,
               l.colPriceHt,
               l.colVat,
@@ -5428,6 +5852,9 @@ class _LilyGoAppState extends State<LilyGoApp> {
                         ? '${r['label']} ${l.productDisabledSuffix}'
                         : r['label'],
                     r['category_label'] ?? '—',
+                    r['fk_product_type'] == 1
+                        ? l.productTypeService
+                        : l.productTypeGoods,
                     r['barcode'] ?? '—',
                     'NT\$${_number(r['price'])}',
                     '${_number(r['tva_tx'])}%',
@@ -5554,6 +5981,11 @@ class _LilyGoAppState extends State<LilyGoApp> {
                         order['customer'].toString(),
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
+                      if (order['date_livraison'] != null)
+                        Text(
+                          'Planned delivery: ${order['date_livraison']}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                     ],
                   ),
                 ),
@@ -5786,6 +6218,15 @@ class _LilyGoAppState extends State<LilyGoApp> {
 
   Widget _menuContent() {
     final l = _l;
+    final filteredContentItems = menuContentItems
+        .where(
+          (r) =>
+              contentStatusFilter == 'all' ||
+              (contentStatusFilter == 'draft'
+                  ? r['status'] == 'draft'
+                  : r['status'] != 'draft'),
+        )
+        .toList();
     return _Page(
       children: [
         Row(
@@ -5875,12 +6316,54 @@ class _LilyGoAppState extends State<LilyGoApp> {
           ),
         ),
         const SizedBox(height: 12),
+        // WordPress-style "All | Published | Draft" status tabs above the
+        // post list table.
+        SegmentedButton<String>(
+          segments: [
+            ButtonSegment(
+              value: 'all',
+              label: Text('All (${menuContentItems.length})'),
+            ),
+            ButtonSegment(
+              value: 'published',
+              label: Text(
+                'Published (${menuContentItems.where((r) => r['status'] != 'draft').length})',
+              ),
+            ),
+            ButtonSegment(
+              value: 'draft',
+              label: Text(
+                'Draft (${menuContentItems.where((r) => r['status'] == 'draft').length})',
+              ),
+            ),
+          ],
+          selected: {contentStatusFilter},
+          onSelectionChanged: (value) =>
+              setState(() => contentStatusFilter = value.first),
+        ),
+        const SizedBox(height: 12),
         _DataTable(
-          columns: [l.colReference, l.colLabel, 'Description', ''],
-          rows: menuContentItems
-              .map((r) => [r['ref'], r['label'], r['description'], 'EDIT'])
+          columns: [l.colReference, l.colLabel, 'Description', 'Status', ''],
+          rows: filteredContentItems
+              .map(
+                (r) => [
+                  r['ref'],
+                  r['label'],
+                  r['description'],
+                  r['status'] == 'draft' ? 'STATUS:draft' : 'STATUS:published',
+                  'EDIT',
+                ],
+              )
               .toList(),
-          onAction: (index) => _editMenuContentItem(menuContentItems[index]),
+          onAction: (index) =>
+              _editMenuContentItem(filteredContentItems[index]),
+          onSecondaryAction: (index) {
+            final item = filteredContentItems[index];
+            final nextStatus = item['status'] == 'draft'
+                ? 'published'
+                : 'draft';
+            _setMenuContentItemStatus(item['rowid'] as int, nextStatus);
+          },
           empty: l.contentEmpty,
         ),
       ],
@@ -5908,6 +6391,26 @@ class _LilyGoAppState extends State<LilyGoApp> {
           onAction: (index) => _adjustPoints(loyaltyAccounts[index]),
           empty: l.loyaltyEmpty,
         ),
+        const SizedBox(height: 16),
+        if (loyaltyAccounts.isNotEmpty && rewards.isNotEmpty) ...[
+          const Text(
+            'Rewards',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          ...loyaltyAccounts.map(
+            (account) => Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: () => _claimReward(account),
+                icon: const Icon(Icons.card_giftcard_outlined),
+                label: Text(
+                  'Claim for ${_shortWallet(account['contact_wallet'].toString())}',
+                ),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -5952,6 +6455,18 @@ class _LilyGoAppState extends State<LilyGoApp> {
               icon: const Icon(Icons.auto_awesome_outlined),
               label: Text(l.seedMachinesButton),
             ),
+            const SizedBox(width: 8),
+            OutlinedButton.icon(
+              onPressed: () => _editLocation(),
+              icon: const Icon(Icons.add),
+              label: const Text('New resource'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              onPressed: machinesList.isEmpty ? null : () => _editBooking(),
+              icon: const Icon(Icons.add),
+              label: const Text('New booking'),
+            ),
           ],
         ),
         const SizedBox(height: 12),
@@ -5978,19 +6493,41 @@ class _LilyGoAppState extends State<LilyGoApp> {
                   : state == 'maintenance'
                   ? l.machineStateMaintenance
                   : l.machineStateIdle;
+              final locationType = machine['location_type']?.toString();
+              final typeLabel = switch (locationType) {
+                'room' => 'Room (scenario)',
+                'table' => 'Table (scenario)',
+                'private' => 'Private resource',
+                _ => 'Shared resource',
+              };
+              final capacity = machine['capacity'];
               return PopupMenuButton<String>(
-                onSelected: (value) =>
-                    _setMachineStateAction(machine['id'] as int, value),
+                onSelected: (value) {
+                  switch (value) {
+                    case 'edit':
+                      _editLocation(machine);
+                    case 'delete':
+                      _deleteLocation(machine['id'] as int);
+                    default:
+                      _setMachineStateAction(machine['id'] as int, value);
+                  }
+                },
                 itemBuilder: (_) => [
                   PopupMenuItem(value: 'idle', child: Text(l.setIdleButton)),
                   PopupMenuItem(
                     value: 'maintenance',
                     child: Text(l.setMaintenanceButton),
                   ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                  const PopupMenuItem(value: 'delete', child: Text('Delete')),
                 ],
                 child: Chip(
                   avatar: Icon(Icons.circle, size: 12, color: color),
-                  label: Text('${machine['name']} · $label'),
+                  label: Text(
+                    '${machine['name']} · $typeLabel'
+                    '${capacity == null ? '' : ' ($capacity)'} · $label',
+                  ),
                 ),
               );
             }).toList(),
@@ -6048,10 +6585,19 @@ class _LilyGoAppState extends State<LilyGoApp> {
                     ),
                     Chip(label: Text(_bookingStatusLabel(l, status))),
                     PopupMenuButton<String>(
-                      onSelected: (value) => _updateBookingStatusAction(
-                        booking['id'] as int,
-                        value,
-                      ),
+                      onSelected: (value) {
+                        switch (value) {
+                          case 'edit':
+                            _editBooking(booking);
+                          case 'delete':
+                            _deleteBookingAction(booking['id'] as int);
+                          default:
+                            _updateBookingStatusAction(
+                              booking['id'] as int,
+                              value,
+                            );
+                        }
+                      },
                       itemBuilder: (_) => [
                         PopupMenuItem(
                           value: 'released',
@@ -6068,6 +6614,12 @@ class _LilyGoAppState extends State<LilyGoApp> {
                         PopupMenuItem(
                           value: 'canceled',
                           child: Text(l.cancelBookingMenuItem),
+                        ),
+                        const PopupMenuDivider(),
+                        const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Text('Delete'),
                         ),
                       ],
                       child: const Icon(Icons.more_vert),
@@ -6290,6 +6842,61 @@ class _LilyGoAppState extends State<LilyGoApp> {
               .toList(),
           empty: l.downtimeHistoryEmpty,
         ),
+        const SizedBox(height: 28),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Downtime reasons',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            OutlinedButton.icon(
+              onPressed: () => _editDowntimeReason(),
+              icon: const Icon(Icons.add),
+              label: const Text('New reason'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (allDowntimeReasonsList.isEmpty)
+          const Card(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Text('No downtime reasons yet.'),
+            ),
+          )
+        else
+          Card(
+            child: Column(
+              children: allDowntimeReasonsList.map((r) {
+                return ListTile(
+                  leading: Icon(
+                    r['is_planned'] == true
+                        ? Icons.event_available_outlined
+                        : Icons.report_problem_outlined,
+                  ),
+                  title: Text(r['name'].toString()),
+                  subtitle: Text(
+                    '${r['code']} · ${r['is_active'] == false ? 'Inactive' : 'Active'}',
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        onPressed: () => _editDowntimeReason(r),
+                        icon: const Icon(Icons.edit_outlined),
+                      ),
+                      IconButton(
+                        onPressed: () =>
+                            _deleteDowntimeReasonAction(r['id'] as int),
+                        icon: const Icon(Icons.delete_outline),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
       ],
     );
   }
@@ -6540,6 +7147,12 @@ class _StatusChip extends StatelessWidget {
   );
 }
 
+// Bounds portal content to an iPad-landscape reading width (1024pt, the
+// guide.pdf screenshots' own frame) instead of stretching edge-to-edge on
+// wide monitors, then centers it — the same "fits inside a tablet" framing
+// every AirREGI guide screen uses.
+const double _padWidth = 1024;
+
 class _Page extends StatelessWidget {
   const _Page({required this.children, this.padding = 28});
   final List<Widget> children;
@@ -6547,10 +7160,50 @@ class _Page extends StatelessWidget {
   @override
   Widget build(BuildContext c) => SingleChildScrollView(
     padding: EdgeInsets.fromLTRB(padding, padding - 4, padding, padding),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: children,
+    child: LayoutBuilder(
+      builder: (context, constraints) => Center(
+        child: SizedBox(
+          width: constraints.maxWidth.clamp(0, _padWidth).toDouble(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: children,
+          ),
+        ),
+      ),
     ),
+  );
+}
+
+// Pairs two blocks side by side like the guide's STEP 1 / STEP 2 spread,
+// stacking to a single column once the pad-width content area gets too
+// narrow to hold both comfortably (e.g. iPad portrait).
+class _TwoColumn extends StatelessWidget {
+  const _TwoColumn({required this.left, required this.right});
+  final Widget left;
+  final Widget right;
+  static const _gap = 20.0;
+  @override
+  Widget build(BuildContext c) => LayoutBuilder(
+    builder: (context, constraints) {
+      if (constraints.maxWidth < 560) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            left,
+            const SizedBox(height: _gap),
+            right,
+          ],
+        );
+      }
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: left),
+          const SizedBox(width: _gap),
+          Expanded(child: right),
+        ],
+      );
+    },
   );
 }
 
@@ -6686,6 +7339,26 @@ class _DataTable extends StatelessWidget {
                                       onSecondaryAction?.call(entry.key),
                                   icon: const Icon(Icons.translate),
                                   tooltip: l.translationsAction,
+                                )
+                              : cell.value is String &&
+                                    (cell.value as String).startsWith('STATUS:')
+                              ? ActionChip(
+                                  avatar: Icon(
+                                    cell.value == 'STATUS:draft'
+                                        ? Icons.edit_note_outlined
+                                        : Icons.public,
+                                    size: 16,
+                                  ),
+                                  label: Text(
+                                    cell.value == 'STATUS:draft'
+                                        ? 'Draft'
+                                        : 'Published',
+                                  ),
+                                  tooltip: cell.value == 'STATUS:draft'
+                                      ? 'Tap to publish'
+                                      : 'Tap to switch to draft',
+                                  onPressed: () =>
+                                      onSecondaryAction?.call(entry.key),
                                 )
                               : Text('${cell.value ?? ''}'),
                         ),
@@ -7062,6 +7735,114 @@ class _WorkerDialogState extends State<_WorkerDialog> {
   );
 }
 
+class _LocationDraft {
+  const _LocationDraft(this.name, this.locationType, this.capacity);
+  final String name;
+  final String locationType;
+  final int? capacity;
+}
+
+class _LocationDialog extends StatefulWidget {
+  const _LocationDialog({this.row});
+  final Map<String, dynamic>? row;
+  @override
+  State<_LocationDialog> createState() => _LocationDialogState();
+}
+
+class _LocationDialogState extends State<_LocationDialog> {
+  late final name = TextEditingController(
+    text: widget.row?['name']?.toString() ?? '',
+  );
+  late final capacity = TextEditingController(
+    text: widget.row?['capacity']?.toString() ?? '',
+  );
+  late String locationType =
+      widget.row?['location_type']?.toString() ?? 'shared';
+
+  @override
+  void dispose() {
+    name.dispose();
+    capacity.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext c) {
+    final l = AppLocalizations.of(c);
+    return AlertDialog(
+      title: Text(widget.row == null ? 'New resource' : 'Edit resource'),
+      content: SizedBox(
+        width: 380,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _field('Name', name),
+            DropdownButtonFormField<String>(
+              initialValue: locationType,
+              decoration: const InputDecoration(
+                labelText: 'Type',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: 'shared',
+                  child: Text('Shared resource'),
+                ),
+                DropdownMenuItem(
+                  value: 'private',
+                  child: Text('Private resource'),
+                ),
+                DropdownMenuItem(
+                  value: 'table',
+                  child: Text('Table (scenario)'),
+                ),
+                DropdownMenuItem(value: 'room', child: Text('Room (scenario)')),
+              ],
+              onChanged: (value) =>
+                  setState(() => locationType = value ?? 'shared'),
+            ),
+            const SizedBox(height: 12),
+            _field('Capacity (optional)', capacity, numeric: true),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(c),
+          child: Text(l.cancelButton),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(
+            c,
+            _LocationDraft(
+              name.text,
+              locationType,
+              int.tryParse(capacity.text),
+            ),
+          ),
+          child: Text(l.saveButton),
+        ),
+      ],
+    );
+  }
+
+  Widget _field(
+    String label,
+    TextEditingController controller, {
+    bool numeric = false,
+  }) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: TextField(
+      controller: controller,
+      keyboardType: numeric ? TextInputType.number : TextInputType.text,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
+    ),
+  );
+}
+
 class _ShiftDraft {
   const _ShiftDraft(
     this.name,
@@ -7212,6 +7993,295 @@ class _ShiftDialogState extends State<_ShiftDialog> {
       ],
     );
   }
+}
+
+class _BookingDraft {
+  const _BookingDraft({
+    required this.machineId,
+    required this.partySize,
+    required this.start,
+    required this.end,
+    this.workerId,
+  });
+  final int machineId;
+  final int partySize;
+  final DateTime start;
+  final DateTime end;
+  final int? workerId;
+}
+
+class _BookingDialog extends StatefulWidget {
+  const _BookingDialog({
+    this.row,
+    required this.machines,
+    required this.workers,
+  });
+  final Map<String, dynamic>? row;
+  final List<Map<String, dynamic>> machines;
+  final List<Map<String, dynamic>> workers;
+  @override
+  State<_BookingDialog> createState() => _BookingDialogState();
+}
+
+class _BookingDialogState extends State<_BookingDialog> {
+  int? machineId;
+  int? workerId;
+  late final partySize = TextEditingController(
+    text: (widget.row?['party_size'] as num?)?.toString() ?? '2',
+  );
+  late DateTime start;
+  late final duration = TextEditingController();
+
+  DateTime? _parseDt(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return DateTime.fromMillisecondsSinceEpoch(v.round());
+    return DateTime.tryParse(v.toString());
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    machineId =
+        widget.row?['machine_id'] as int? ??
+        (widget.machines.isEmpty ? null : widget.machines.first['id'] as int);
+    workerId = widget.row?['worker_id'] as int?;
+    start =
+        _parseDt(widget.row?['scheduled_start']) ??
+        DateTime.now().add(const Duration(hours: 1));
+    final end =
+        _parseDt(widget.row?['scheduled_end']) ??
+        start.add(const Duration(hours: 1));
+    duration.text = end.difference(start).inMinutes.clamp(15, 1440).toString();
+  }
+
+  @override
+  void dispose() {
+    partySize.dispose();
+    duration.dispose();
+    super.dispose();
+  }
+
+  String _format(DateTime dt) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${dt.year}-${two(dt.month)}-${two(dt.day)} ${two(dt.hour)}:${two(dt.minute)}';
+  }
+
+  Future<void> _pickStart() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: start,
+      firstDate: DateTime.now().subtract(const Duration(days: 1)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(start),
+    );
+    if (time == null) return;
+    setState(
+      () => start = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext c) {
+    final l = AppLocalizations.of(c);
+    return AlertDialog(
+      title: Text(widget.row == null ? 'New booking' : 'Edit booking'),
+      content: SizedBox(
+        width: 380,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<int>(
+              initialValue: machineId,
+              decoration: const InputDecoration(
+                labelText: 'Location',
+                border: OutlineInputBorder(),
+              ),
+              items: widget.machines
+                  .map(
+                    (m) => DropdownMenuItem(
+                      value: m['id'] as int,
+                      child: Text(m['name'].toString()),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) => setState(() => machineId = value),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<int?>(
+              initialValue: workerId,
+              decoration: const InputDecoration(
+                labelText: 'Staff (optional)',
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                const DropdownMenuItem<int?>(
+                  value: null,
+                  child: Text('Unassigned'),
+                ),
+                ...widget.workers.map(
+                  (w) => DropdownMenuItem<int?>(
+                    value: w['id'] as int,
+                    child: Text(w['name'].toString()),
+                  ),
+                ),
+              ],
+              onChanged: (value) => setState(() => workerId = value),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: partySize,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Party size',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Starts'),
+              subtitle: Text(_format(start)),
+              trailing: const Icon(Icons.edit_calendar_outlined),
+              onTap: _pickStart,
+            ),
+            TextField(
+              controller: duration,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Duration (minutes)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(c),
+          child: Text(l.cancelButton),
+        ),
+        FilledButton(
+          onPressed: machineId == null
+              ? null
+              : () => Navigator.pop(
+                  c,
+                  _BookingDraft(
+                    machineId: machineId!,
+                    partySize: int.tryParse(partySize.text) ?? 1,
+                    start: start,
+                    end: start.add(
+                      Duration(minutes: int.tryParse(duration.text) ?? 60),
+                    ),
+                    workerId: workerId,
+                  ),
+                ),
+          child: Text(l.saveButton),
+        ),
+      ],
+    );
+  }
+}
+
+class _DowntimeReasonDraft {
+  const _DowntimeReasonDraft(
+    this.name,
+    this.code,
+    this.isPlanned,
+    this.isActive,
+  );
+  final String name, code;
+  final bool isPlanned, isActive;
+}
+
+class _DowntimeReasonDialog extends StatefulWidget {
+  const _DowntimeReasonDialog({this.row});
+  final Map<String, dynamic>? row;
+  @override
+  State<_DowntimeReasonDialog> createState() => _DowntimeReasonDialogState();
+}
+
+class _DowntimeReasonDialogState extends State<_DowntimeReasonDialog> {
+  late final name = TextEditingController(
+    text: widget.row?['name']?.toString() ?? '',
+  );
+  late final code = TextEditingController(
+    text: widget.row?['code']?.toString() ?? '',
+  );
+  late bool isPlanned = widget.row?['is_planned'] == true;
+  late bool isActive = widget.row?['is_active'] != false;
+
+  @override
+  void dispose() {
+    name.dispose();
+    code.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext c) {
+    final l = AppLocalizations.of(c);
+    return AlertDialog(
+      title: Text(
+        widget.row == null ? 'New downtime reason' : 'Edit downtime reason',
+      ),
+      content: SizedBox(
+        width: 380,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _field('Name', name),
+            _field('Code', code),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Planned'),
+              value: isPlanned,
+              onChanged: (value) => setState(() => isPlanned = value),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Active'),
+              value: isActive,
+              onChanged: (value) => setState(() => isActive = value),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(c),
+          child: Text(l.cancelButton),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(
+            c,
+            _DowntimeReasonDraft(name.text, code.text, isPlanned, isActive),
+          ),
+          child: Text(l.saveButton),
+        ),
+      ],
+    );
+  }
+
+  Widget _field(String label, TextEditingController controller) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
+    ),
+  );
 }
 
 class _PosSettingsPanel extends StatefulWidget {
@@ -7548,6 +8618,9 @@ class _CmsItemDialogState extends State<_CmsItemDialog> {
   late final linkUrl = TextEditingController(
     text: widget.row?['link_url']?.toString() ?? '',
   );
+  // WordPress default: a brand-new item starts as a Draft until you choose
+  // Publish; editing an existing item keeps whatever status it already has.
+  late String status = widget.row?['status']?.toString() ?? 'draft';
 
   @override
   void dispose() {
@@ -7561,6 +8634,7 @@ class _CmsItemDialogState extends State<_CmsItemDialog> {
   @override
   Widget build(BuildContext c) {
     final l = AppLocalizations.of(c);
+    final isPublished = status == 'published';
     return AlertDialog(
       title: Text(
         widget.row == null ? l.newContentItemTitle : l.editContentItemTitle,
@@ -7574,6 +8648,18 @@ class _CmsItemDialogState extends State<_CmsItemDialog> {
             _field(l.fieldLabel, label),
             _field(l.fieldDescription, description),
             _field('Link URL (optional)', linkUrl),
+            DropdownButtonFormField<String>(
+              initialValue: status,
+              decoration: const InputDecoration(
+                labelText: 'Status',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'draft', child: Text('Draft')),
+                DropdownMenuItem(value: 'published', child: Text('Published')),
+              ],
+              onChanged: (value) => setState(() => status = value ?? 'draft'),
+            ),
           ],
         ),
       ),
@@ -7589,8 +8675,9 @@ class _CmsItemDialogState extends State<_CmsItemDialog> {
             'labels': widget.row?['labels'],
             'description': description.text,
             'link_url': linkUrl.text,
+            'status': status,
           }),
-          child: Text(l.saveButton),
+          child: Text(isPublished ? l.publishButton : 'Save Draft'),
         ),
       ],
     );
