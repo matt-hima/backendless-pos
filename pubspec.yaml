@@ -2,6 +2,7 @@ name: lilygo_erp_client
 description: Offline-first Dolibarr order client with DuckDB-Wasm.
 publish_to: "none"
 version: 1.0.0+1
+license: GPL-3.0
 
 environment:
   sdk: ">=3.10.0 <4.0.0"
