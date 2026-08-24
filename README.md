@@ -1,141 +1,295 @@
-# LilyGO ERP offline-first simulator
+# LILYGO ERP: OFFLINE-FIRST POINT-OF-SALE, CUSTOMER ORDERING, AND ENTERPRISE RESOURCE MANAGEMENT SYSTEM
 
-This project simulates the full development loop:
+## Abstract
 
-`mock WebRTC order → DuckDB-Wasm → Parquet export → HTTP PUT → UTM mock SD card`
+An offline-first commerce and enterprise resource management system is disclosed. The system comprises a customer ordering client, a merchant operations client, and an optional secondary-display client, all implemented from a shared Flutter codebase. The customer ordering client maintains a local product and order store and communicates with the merchant operations client through a store-specific peer channel. The merchant operations client maintains a relational database in a browser or device runtime, performs order ingestion, inventory operations, point-of-sale settlement, customer management, booking, loyalty, content, and access-control operations locally, and optionally exports selected data to a pluggable storage target. Customer order contents may be encrypted using a wallet-derived key. The system thereby permits a store to conduct core ordering and operational workflows without requiring a conventional application server to execute relational business logic.
 
-The LilyGO itself is represented by a FastAPI server. It only stores the uploaded binary file; all relational processing stays in the Flutter browser client.
+## 1. Title
 
-## 1. Start the simulated LilyGO in UTM
+**LILYGO ERP: Offline-First Point-of-Sale, Customer Ordering, and Enterprise Resource Management System**
 
-Create or boot an Ubuntu/Debian VM in UTM. In the VM, copy the `mock_server/` directory (or copy the entire project), then run:
+## 2. Technical Field
+
+The present disclosure relates to computer-implemented point-of-sale, customer ordering, inventory, booking, loyalty, and enterprise resource management systems. More particularly, it relates to an offline-first system in which relational data processing and business workflows execute in a browser or local device runtime, while peer communication and optional storage synchronization are separated from the core application logic.
+
+## 3. Background
+
+Conventional point-of-sale and enterprise systems commonly depend on a continuously reachable application server. Such dependence can make a store unable to browse a catalog, accept orders, operate a register, or inspect inventory during a network outage. It can also require a business to provision and maintain a server even when the desired deployment consists of a small number of local terminals.
+
+Customer ordering systems and merchant back-office systems are also frequently implemented as separate applications with separate data models. This can result in duplicated catalog configuration, delayed order hand-off, and limited support for direct device-to-device operation. Cloud-only persistence can further expose customer information and operational records to infrastructure that is not necessary for the immediate transaction.
+
+Accordingly, a system is needed that provides a unified customer and merchant workflow, local relational processing, direct peer order delivery, optional durable synchronization, and wallet-scoped identity and data protection.
+
+## 4. Summary of the Disclosure
+
+In one embodiment, the system includes:
+
+1. A customer storefront at `/` that displays a channel-specific catalog, accepts cart selections and bookings, and submits orders.
+2. A merchant portal at `/portal` that initializes a local relational database and provides catalog, order, register, inventory, booking, loyalty, content, reporting, and administration functions.
+3. A channel service that associates a merchant with a shareable URL and QR code and establishes a PeerJS/WebRTC connection between the storefront and portal.
+4. A local customer data store implemented using IndexedDB.
+5. A local merchant data store implemented using DuckDB-Wasm in a browser or native DuckDB on Android.
+6. A wallet and credential layer supporting an injected EIP-1193 wallet, a locally generated EVM wallet, and passkey-assisted local-wallet unlock.
+7. A pluggable storage synchronization interface that exports selected order data as Parquet and optionally uploads the export to an authenticated storage relay.
+8. Optional backup, notification, printing, Google Workspace, QR, secondary-display, and Android-native integrations.
+
+The system separates the transaction path from the optional synchronization path. A store can therefore use the storefront, portal, local database, and peer channel without operating an ERP application server. When a storage target is available, the portal can attest the target, export a selected relational view, and upload the resulting binary artifact.
+
+## 5. Brief Description of the Drawings
+
+### Figure 1 — System topology
+
+```mermaid
+flowchart LR
+    C["Customer storefront /"]
+    P["Merchant portal /portal"]
+    D["QR / secondary display"]
+    I[("IndexedDB\ncustomer store")]
+    K[("DuckDB-Wasm or\nnative DuckDB")]
+    W["PeerJS + WebRTC\nmerchant channel"]
+    X["Parquet export"]
+    R["Optional storage relay\nor LilyGO target"]
+    G["Optional Google\nDrive / Sheets"]
+
+    C --> I
+    P --> K
+    C <--> W
+    P <--> W
+    P --> X --> R
+    P --> G
+    P --> D
+```
+
+### Figure 2 — Customer-to-merchant order flow
+
+```text
+channel URL / QR
+      ↓
+local catalog → cart → optional wallet profile → encrypted order envelope
+      ↓
+PeerJS/WebRTC merchant channel
+      ↓
+portal order ingestion → local relational upsert → status / fulfillment / payment
+      ↓
+optional Parquet export → authenticated storage target
+```
+
+### Figure 3 — Local data boundary
+
+```text
+Customer device                         Merchant device
+----------------                         ---------------
+IndexedDB                                 DuckDB-Wasm / native DuckDB
+catalog · orders · chat                    ERP · POS · inventory · IAM
+CMS · bookings · session       ←WebRTC→    loyalty · bookings · reports
+```
+
+## 6. Detailed Description
+
+### 6.1 Application surfaces and actors
+
+The system supports at least two classes of users:
+
+- **Customer:** accesses the storefront, browses products, selects variations, submits orders, communicates with staff, and may participate in bookings or loyalty programs.
+- **Merchant operator:** signs into the portal, provisions the store channel, manages catalog and content, receives and fulfills orders, operates a register, manages inventory, administers staff permissions, and performs reporting or backup.
+
+An Android terminal may additionally act as a native database host, a WebRTC endpoint, a piece-exchange endpoint, or a controller for a compatible secondary display.
+
+### 6.2 Store provisioning and channel creation
+
+Upon portal entry, the merchant may authenticate with an injected wallet, unlock a locally stored wallet, unlock through a passkey, or enter a demo mode. The portal initializes the local database, creates or identifies the merchant record, and generates a channel code. The channel code is used to derive a merchant peer identifier and to construct a customer URL of the form:
+
+```text
+https://<host>/?channel=<channel-code>
+```
+
+The portal can render this URL as a QR code, open a browser print view, invoke thermal printing where supported, or open a second-display route:
+
+```text
+https://<host>/?second_display=1&channel=<channel-code>
+```
+
+### 6.3 Customer storefront operation
+
+The customer client initializes `dolibarr_client_db`, an IndexedDB database containing a local catalog snapshot and customer-side records. The storefront renders product categories, names, descriptions, prices, images, variations, site content, and theme selections. Product translations and interface labels may be selected according to the active locale.
+
+The customer selects one or more products and submits an order. A wallet-linked profile may include contact data, mobile number, birthday, and wallet identity. Order contents are serialized into an encrypted payload before persistence. The cleartext fields required for local filtering are limited to channel and wallet identifiers.
+
+If the merchant peer is reachable, the customer sends an order envelope over the channel. If the peer is not immediately reachable, customer-side records remain in local storage for subsequent application-level handling. Customer-side booking, chat, CMS, and member-session records are likewise maintained locally.
+
+### 6.4 Merchant order ingestion
+
+The portal polls inbound peer messages and identifies order envelopes. For each received order, the portal may:
+
+1. attest the configured storage device when a device endpoint is available;
+2. create or update the customer and contact records;
+3. create or update the order header and order lines;
+4. update the local relational view;
+5. export the selected order view to `dolibarr_orders.parquet`;
+6. upload the export to an optional storage target; and
+7. notify the operator of the new order.
+
+Order status is represented by the following values:
+
+| Value | Status |
+| ---: | --- |
+| `0` | Draft |
+| `1` | Validated |
+| `2` | Accepted |
+| `3` | Processing |
+| `4` | Delivered |
+| `-1` | Canceled |
+
+### 6.5 Local relational processing
+
+The merchant portal uses DuckDB-Wasm in the browser. On Android, the application can initialize a native DuckDB database at `portal.duckdb` through the `lilygo/android_client` method channel and JNI library. Relational joins, aggregation, stock calculations, sales analysis, invoice creation, payment association, status updates, and backup extraction are executed by the local database layer.
+
+The schema is initialized by [`lib/services/database_service.dart`](lib/services/database_service.dart) and the SuiteCRM-compatible portion by [`lib/data/suitecrm_schema.dart`](lib/data/suitecrm_schema.dart).
+
+| Schema | Implemented subject matter |
+| --- | --- |
+| `erp` | Customers, contacts, products, categories, orders, order lines, invoices, invoice lines, payments, warehouses, stock, stock movements, POS cash fences, payment types, and settings. |
+| `chat` | Channel rooms, subscriptions, support rooms, and messages. |
+| `cms` | Collections, fields, and storefront content items. |
+| `loyalty` | Legacy loyalty tables retained for compatibility. |
+| `mes` | Machines, shelf locations, shelf stock, production orders, workers, shifts, downtime reasons, and downtime history. |
+| `iam` | Wallet-linked users, roles, permissions, and role mappings. |
+| `op` | Service-event/work-package statuses, participants, and journals. |
+| `suitecrm` | Memberships, contacts, bookings, points ledger, rewards, and reward claims. |
+
+### 6.6 POS, inventory, and ERP functions
+
+The portal provides the following operational embodiments:
+
+- **Register:** open a cash fence, add products to a register cart, check stock, record cash/card or configured payment methods, close settlement, and issue refunds.
+- **Inventory:** receive warehouse stock, transfer stock to shelf locations, adjust shelf quantities, consume shelf stock, and inspect movement history.
+- **Catalog:** create or edit products, categories, tax treatment, photos, barcodes, stock thresholds, sale/purchase flags, and localized labels.
+- **Sales analysis:** calculate daily, date-range, product, and category aggregates and export sales data as CSV.
+- **Bookings and production:** check availability, create or update bookings, maintain machines and workers, schedule shifts, and record downtime.
+- **Membership and loyalty:** maintain membership records, award or redeem points, earn points from bookings or purchases, and process reward claims.
+- **Access control:** associate wallet identities with built-in or custom roles and permission names such as `orders.manage`, `products.manage`, `register.use`, `bookings.manage`, and `settings.manage`.
+- **Content:** maintain CMS items that are copied to the customer-side store and used to render the public storefront.
+
+### 6.7 Peer communication
+
+The browser implementation uses `web/webrtc_bridge.js`. A merchant peer is derived from the channel code using the naming pattern `lilygo-merchant-<channel>`. PeerJS brokers initial discovery and WebRTC carries reliable application messages. Heartbeat messages provide connection liveness and expose connection states including `connecting`, `connected`, `stale`, `open`, and `disconnected`.
+
+The Android implementation initializes a native WebRTC `PeerConnectionFactory`. The Android platform layer also exposes a `PieceExchangeEngine` for piece-oriented binary exchange with progress reporting and a secondary-display presentation path through `DisplayManager`.
+
+### 6.8 Optional storage synchronization
+
+The reference implementation in `mock_server/main.py` represents a LilyGO or LAN storage target. It does not execute ERP logic. The target provides:
+
+| Interface | Function |
+| --- | --- |
+| `GET /api/health` | Liveness check. |
+| `POST /api/device/attest` | HMAC-SHA256 proof using a device-local key. |
+| `PUT /api/storage/sync?filename=...` | Authenticated binary upload to target storage. |
+
+The portal’s `exportParquet()` materializes a selected order view containing order, customer, and contact fields. The complete local database is not implicitly uploaded. The relay supports configured CORS origins, an optional `x-device-sync-token`, upload-size limits, safe filenames, and atomic replacement.
+
+### 6.9 Backup and external integrations
+
+The portal can export and restore a JSON envelope containing local DuckDB and IndexedDB data. When configured with `GOOGLE_OAUTH_CLIENT_ID`, the browser bridge can save or restore a Drive JSON backup and export or import tabular data through Google Sheets. OAuth access tokens are retained in memory by the browser bridge.
+
+Browser notifications, keep-awake behavior, QR scanning, channel printing, and secondary-display opening are optional platform capabilities. Their absence does not prevent local catalog, ordering, or ERP operation.
+
+### 6.10 Identity and data protection
+
+The identity layer supports:
+
+- injected EIP-1193 wallets through `flutter_web3`;
+- browser-generated EVM wallets through the local wallet bridge;
+- encrypted JSON keystore persistence;
+- recovery phrase restoration;
+- WebAuthn passkey-assisted unlock; and
+- wallet-linked customer and merchant records.
+
+The local wallet private key remains within the browser bridge during the relevant operation. Customer order payloads use AES-GCM encryption with a wallet-derived key. Device attestation proves possession of the storage target’s local key and does not by itself authenticate a merchant or customer.
+
+## 7. Example Operating Procedure
 
 ```bash
-cd lilygo-erp
+flutter pub get
+flutter config --enable-web
+flutter run -d chrome
+```
+
+Open `/portal`, select **Demo mode** for an evaluation walkthrough, or authenticate with a wallet. The storefront is available at `/`. A prepared sample catalog can be opened with:
+
+```text
+/?demo=1
+/?demo=1&simulate=1
+```
+
+To run the optional reference storage target:
+
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r mock_server/requirements.txt
 python -m uvicorn mock_server.main:app --host 0.0.0.0 --port 8000
 ```
 
-For a protected device sync endpoint, set a long random token before starting the emulator:
+The client may be pointed to that target with:
 
 ```bash
-export DEVICE_SYNC_TOKEN="replace-with-a-long-random-token"
-python -m uvicorn mock_server.main:app --host 0.0.0.0 --port 8000
+flutter run -d chrome --dart-define=API_URL=http://127.0.0.1:8000
 ```
 
-When using a local Flutter build, pass the same token with `--dart-define=DEVICE_SYNC_TOKEN=...`. For network exposure, terminate HTTPS in front of the emulator or start Uvicorn with an appropriate certificate and private key; do not expose plain HTTP beyond the trusted UTM/LAN segment.
+For web deployment, `flutter build web --release` produces a static SPA. The host must rewrite `/`, `/portal`, `/second-display`, and other client routes to `index.html`. Firebase Hosting configuration is provided in [`firebase.json`](firebase.json).
 
-UTM networking must allow the host to reach the VM. With shared/NAT networking, find the VM address with:
+## 8. Advantages
 
-```bash
-ip -4 addr
-```
+The disclosed architecture provides several operational advantages:
 
-Verify from the host browser or terminal that `http://VM_IP:8000/api/health` returns `{"status":"ok",...}`. Opening `http://VM_IP:8000/` now reverse-proxies the hosted Flutter app from `https://remote-order.web.app`; uploaded files still appear in `mock_sd_card/dolibarr_orders.parquet` inside the VM.
+1. Core POS and ERP functions remain available without a continuously reachable application server.
+2. Customer and merchant clients share a channel-specific workflow without requiring a centralized order API.
+3. Relational processing remains in the client runtime, allowing local joins, reporting, and business rules.
+4. The storage target is replaceable and receives only an explicit export artifact.
+5. Wallet-scoped encryption limits exposure of customer order content in browser storage.
+6. The same product concept spans storefront, register, inventory, booking, loyalty, content, and access-control functions.
+7. Web, Android, print, QR, secondary-display, and Google Workspace integrations are isolated behind platform bridges.
 
-## 2. Configure the Flutter client
+## 9. Implementation Boundaries
 
-On the host, install Flutter 3.22+ and enable web support. From this project directory:
+- The system is local-first rather than a centralized multi-tenant ERP service. Cross-device consistency depends on the configured peer and synchronization paths.
+- Browser WebRTC connectivity can be affected by signaling availability, NAT, firewalls, and browser network policy.
+- An HTTPS-hosted portal calling an HTTP LAN target may be blocked by mixed-content or private-network rules.
+- The connection panel retains legacy manual offer/answer controls, while the active browser implementation uses automatic PeerJS channel setup.
+- The Android native build is arm64-focused and requires the DuckDB source under `native/duckdb`.
+- The `op` service-event model is available in the data layer but does not currently have a dedicated portal navigation panel.
 
-```bash
-flutter pub get
-flutter config --enable-web
-```
+## 10. Claims
 
-The file `web/duckdb_bridge.js` loads DuckDB-Wasm from jsDelivr and exposes a small browser API used by `DatabaseService`. `web/index.html` loads that bridge before Flutter. An internet connection is needed the first time the DuckDB-Wasm JavaScript and worker assets are fetched; production deployments should self-host and pin those assets.
+The following claims describe the implemented technical concept in concise form. They are provided as project documentation and are not a substitute for a jurisdiction-specific patent claim review.
 
-Start the app with the VM address when using the local Flutter build:
+1. **An offline-first commerce system**, comprising: a customer client having a browser-local object store; a merchant client having a local relational database; a channel-specific peer communication layer connecting the customer client and the merchant client; and a merchant operation layer configured to ingest an order from the peer communication layer and perform order, inventory, payment, or fulfillment processing in the local relational database.
 
-```bash
-flutter run -d chrome --dart-define=API_URL=http://VM_IP:8000
-```
+2. **The system of claim 1**, wherein the customer client and merchant client are routes of a shared Flutter application, the customer route being `/` and the merchant route being `/portal`.
 
-The default address is `http://192.168.64.3:8000`, so the define is optional if that is your VM address. If Chrome blocks the request, check that the FastAPI process is bound to `0.0.0.0`, the VM networking mode exposes port 8000, and the app is using the VM IP rather than `localhost`.
+3. **The system of claim 1**, wherein the channel-specific peer communication layer derives a merchant peer identifier from a store channel code and uses PeerJS to broker a WebRTC data connection.
 
-## 3. Test the flow
+4. **The system of claim 1**, wherein the browser-local object store comprises IndexedDB stores for a product catalog, encrypted order envelopes, wallet-linked customer records, channel records, chat messages, content items, bookings, and member sessions.
 
-The mock radio emits one order every 10 seconds. Each order contains a third party, contact, and order. The client:
+5. **The system of claim 1**, wherein the local relational database comprises tables for customers, products, categories, orders, invoices, payments, warehouses, stock, point-of-sale cash fences, bookings, loyalty, content, roles, permissions, machines, workers, shifts, and downtime.
 
-1. Creates the three Dolibarr-style tables in DuckDB-Wasm.
-2. Upserts the payload into `llx_societe`, `llx_socpeople`, and `llx_commande`.
-3. Exports a joined order view as `dolibarr_orders.parquet` in DuckDB-Wasm's virtual filesystem.
-4. Reads the file into `Uint8List` and sends it to `PUT /api/storage/sync`.
+6. **The system of claim 1**, further comprising a wallet layer configured to use an injected EIP-1193 wallet or a browser-generated local wallet to identify a user and derive a key for encrypting customer order contents.
 
-The Flutter status card shows the latest order, Parquet byte count, and row count. The FastAPI console shows the request, and the VM's `mock_sd_card/` directory contains the resulting file.
+7. **The system of claim 6**, wherein the local wallet is persisted as an encrypted JSON keystore and is unlockable using a passphrase or a WebAuthn passkey-derived secret.
 
-## Dolibarr workspace UI
+8. **The system of claim 1**, further comprising an export layer configured to materialize a selected relational view as a Parquet file and to optionally transmit the Parquet file to a storage target through an HTTP upload interface.
 
-The Flutter client includes four tabs:
+9. **The system of claim 8**, wherein the storage target exposes health checking, device-key attestation, and authenticated binary upload and performs storage without executing the merchant relational business logic.
 
-- **Overview**: offline status and counts for orders, third parties, and products.
-- **Third parties**: reads `llx_societe` customer data.
-- **Products**: reads `llx_product` and supports creating/editing reference, label, price HT, VAT, and stock directly in DuckDB-Wasm.
-- **Orders**: reads `llx_commande` joined with the customer name.
+10. **The system of claim 1**, further comprising a QR provisioning or secondary-display layer configured to display a channel URL for joining the customer client to the merchant client.
 
-The product schema is:
+11. **The system of claim 1**, further comprising an access-control layer configured to associate wallet identities with roles and permissions and to filter merchant portal sections and operations based on the associated permissions.
 
-```sql
-llx_product(rowid, ref, label, price, tva_tx, stock, updated_at)
-```
+12. **A computer-implemented method**, comprising: initializing a local customer catalog; receiving a channel-specific customer order; encrypting at least order contents using a wallet-derived key; transmitting the order to a merchant peer; upserting the order into a local relational database; changing a fulfillment status; and optionally exporting a selected order view to a storage target.
 
-Mock order payloads now include a product and upsert it into `llx_product`. Product edits are local-first; the next Parquet sync includes the current order export.
+13. **The method of claim 12**, further comprising operating a register session, recording a payment, updating inventory, generating a sales aggregate, or issuing a refund using the local relational database while the storage target is unavailable.
 
-The Products tab's **Load 鼎泰豐 menu** action uses the same product-save function as **New product**. It upserts the predefined menu items (小籠包、燒賣、鍋貼、蒸餃、蛋炒飯、麵、湯、青菜與甜點). Every mock order randomly selects 2–3 different menu products, assigns each a quantity from 1–3, calculates the order total, and writes each relationship to `llx_commandedet`. The Orders tab displays every line separately.
+## 11. License
 
-Orders use `llx_commande.fk_statut` with Dolibarr-style states: Draft, Validated, Accepted, In process, Delivered, and Canceled. Each order card has an operation menu for changing its transaction state without horizontal scrolling.
-
-## API contract
-
-```http
-PUT /api/storage/sync?filename=dolibarr_orders.parquet
-Content-Type: application/octet-stream
-
-<raw Parquet bytes>
-```
-
-The server streams the body directly to disk and sanitizes the filename to prevent path traversal. CORS allows all origins, methods, and headers for local development.
-
-## Firebase Hosting
-
-The Flutter client is deployed as a client-side SPA. The root route is the client landing page and `/portal` opens the Dolibarr order portal. Firebase rewrites both paths to `index.html`, so browser refresh and deep links work.
-
-```bash
-flutter build web --release --dart-define=API_URL=http://192.168.64.3:8000 --base-href=/
-firebase deploy --only hosting:remote-order --project glassnframeshop-69ed3
-```
-
-Live site: [remote-order.web.app](https://remote-order.web.app/) · Portal: [remote-order.web.app/portal](https://remote-order.web.app/portal)
-
-The root client uses `web/indexeddb_bridge.js` and stores client-side Dolibarr-shaped records in IndexedDB: `llx_product`, `llx_societe`, `llx_commande`, and `llx_commandedet`. Customer ordering requires wallet login. The connected wallet is upserted as the local `llx_societe` third party, and its address, code, and wallet identity are included in the encrypted transaction payload. Transaction statistics filter by both channel and the connected wallet, so a client only processes its own orders. The portal continues to use DuckDB-Wasm for relational processing and Parquet export.
-
-## Channel links and FQDN deployment
-
-The client accepts a channel query parameter:
-
-```text
-https://remote-order.web.app/?channel=ABC123
-```
-
-The portal's **Create channel** action generates a code and shareable URL. Orders saved from that URL carry the channel code in their IndexedDB transaction record, keeping separate tables, rooms, or ordering sessions logically isolated.
-
-The hosted FQDN remains the web application. The ESP32/UTM service is LAN-only and does not proxy or serve the web app: port `8000` exposes only the device API. In the portal's **LAN device connection** card, enter the device URL manually or scan a QR code containing a URL such as `http://192.168.1.50:8000`. The portal checks `/api/health`, then uses the same URL for device attestation and `PUT /api/storage/sync`.
-
-Set `DEVICE_ALLOWED_ORIGINS` on the device when the portal origin changes. The default allows `https://remote-order.web.app` plus local development origins. For a hosted HTTPS portal to call an HTTP LAN device, the browser may block mixed content or private-network requests; use HTTPS on the device or a local/extension portal when that browser policy applies.
-
-When the device is reachable, the portal calls `POST /api/device/attest` with a one-time nonce before accepting a WebRTC order. The emulator keeps its HMAC device key in `mock_sd_card/.device_auth_key` and returns only a proof; the key is never sent to the portal. If the device is offline, the portal remains usable and queues its local DuckDB state for a later sync.
-
-## WebRTC portal connection
-
-The portal WebRTC tab uses `stun:stun.l.google.com:19302` and provides editable offer/answer JSON fields. The portal clicks **Generate portal offer**, the remote client accepts that offer and returns an answer, and the portal applies the answer. This is manual signaling for development; Google STUN discovers routes but does not relay storage uploads or replace a signaling/relay service.
-
-## Wallet-owned client transactions
-
-Both the customer page and `/portal` support an injected EIP-1193 wallet through `flutter_web3` or a browser-local wallet generated by the app. Local wallet creation asks for a passphrase, generates an EVM account with ethers, and stores only its encrypted JSON keystore in `localStorage`; the plaintext private key is never returned to Dart or persisted. A wallet-specific challenge/key is initialized once per browser session and AES-GCM protects the order payload. IndexedDB stores only the encrypted order envelope plus public channel/wallet filter fields. DuckDB-Wasm is initialized only for `/portal`; the root ordering page uses IndexedDB only.
-
-After login, **Remember info** lets the user optionally save a phone number and birthday. Those fields are encrypted with the wallet key before browser storage and are never written as plaintext Dolibarr contact fields. Users who need stronger recovery can write down the generated recovery phrase and restore the wallet after browser storage is lost.
-
-## License
-
-This project is licensed under the [GNU General Public License v3.0](LICENSE) (GPL-3.0).
+LilyGO ERP is licensed under the [GNU General Public License v3.0](LICENSE).
