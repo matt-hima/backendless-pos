@@ -1,4 +1,4 @@
-# LILYGO ERP: OFFLINE-FIRST POINT-OF-SALE, CUSTOMER ORDERING, AND ENTERPRISE RESOURCE MANAGEMENT SYSTEM
+# BACKENDLESS POS: OFFLINE-FIRST CUSTOMER ORDERING AND ENTERPRISE RESOURCE MANAGEMENT SYSTEM
 
 ## Abstract
 
@@ -6,19 +6,59 @@ An offline-first commerce and enterprise resource management system is disclosed
 
 ## 1. Title
 
-**LILYGO ERP: Offline-First Point-of-Sale, Customer Ordering, and Enterprise Resource Management System**
+**Backendless POS: Offline-First Customer Ordering and Enterprise Resource Management System**
 
 ## 2. Technical Field
 
 The present disclosure relates to computer-implemented point-of-sale, customer ordering, inventory, booking, loyalty, and enterprise resource management systems. More particularly, it relates to an offline-first system in which relational data processing and business workflows execute in a browser or local device runtime, while peer communication and optional storage synchronization are separated from the core application logic.
 
-## 3. Background
+## 3. Prior Art and Technical Context
 
-Conventional point-of-sale and enterprise systems commonly depend on a continuously reachable application server. Such dependence can make a store unable to browse a catalog, accept orders, operate a register, or inspect inventory during a network outage. It can also require a business to provision and maintain a server even when the desired deployment consists of a small number of local terminals.
+This section records the technical systems, data models, and implementation patterns that informed the project. The references below describe compatibility targets, architectural influences, or recognizable categories of prior technology; they are not presented as a legal prior-art search or as formal patent citations.
 
-Customer ordering systems and merchant back-office systems are also frequently implemented as separate applications with separate data models. This can result in duplicated catalog configuration, delayed order hand-off, and limited support for direct device-to-device operation. Cloud-only persistence can further expose customer information and operational records to infrastructure that is not necessary for the immediate transaction.
+### 3.1 Business application and schema references
 
-Accordingly, a system is needed that provides a unified customer and merchant workflow, local relational processing, direct peer order delivery, optional durable synchronization, and wallet-scoped identity and data protection.
+The relational model combines selected ideas from established business-software repositories. The reference repositories are full applications or frameworks; this project does not embed those applications or copy their server implementations. It adapts selected data relationships and workflow vocabulary to a local DuckDB model.
+
+| Reference repository | How the reference project works | Specific adaptation in this project |
+| --- | --- | --- |
+| [Dolibarr](https://github.com/Dolibarr/dolibarr) | A modular PHP web ERP/CRM application. Its business modules organize third parties, products, orders, invoices, payments, stock, warehouses, agenda, accounting, and related records around a shared company database. | The `erp` schema uses `llx_*`-style tables and relationships for customers, contacts, products, categories, orders, invoices, payments, warehouses, stock movements, POS cash fences, and settings. It preserves recognizable identifiers such as `rowid`, `fk_soc`, `fk_product`, `fk_statut`, and `fk_entrepot` while executing locally in DuckDB rather than in Dolibarr’s PHP server. |
+| [Rocket.Chat](https://github.com/RocketChat/Rocket.Chat) | A real-time communications platform organized around servers, channels/rooms, subscriptions, users, messages, and live message delivery. | The `chat` schema keeps the room/subscription/message relationship but scopes rooms to a store channel and wallet identity. Messages are exchanged through the project’s WebRTC channel and persisted locally instead of requiring a Rocket.Chat server. |
+| Headless CMS pattern | A CMS separates structured content management from presentation. Editors manage collections and fields while a client renders content through an API or local data store. | The `cms` schema stores collections, fields, and JSON-like items for storefront title, hero content, menu content, button labels, images, and theme settings. The Flutter storefront renders the content directly from its local snapshot. |
+| Legacy loyalty model | A simple rewards system commonly represents a member account plus a ledger of earned, spent, or adjusted points. | The `loyalty` schema retains `accounts` and `points_transactions` for compatibility with earlier project data. Current membership, booking points, rewards, and claims use the richer `suitecrm` schema. |
+| [OpenMES](https://github.com/Mes-Open/OpenMes) | A manufacturing-execution system tracks production resources and operational state, including machines, work activity, workers, scheduling, and downtime. Its purpose is to connect planned work with the real-time state of execution. | The `mes` schema applies that execution model to store and service operations: machines or tables, shelf locations, shelf stock, production/booking orders, workers, shifts, downtime reasons, and downtime history. |
+| [Keycloak](https://github.com/keycloak/keycloak) | An identity and access-management server centralizes realms, users, clients, roles, groups, authentication, and authorization for applications and services. | The `iam` schema keeps the realm/user/role/permission vocabulary but makes the wallet address the local user key. Permission checks happen inside the client and filter portal navigation and mutations; no Keycloak server is required. |
+| [OpenProject](https://github.com/opf/openproject) | A project-management system organizes work packages, statuses, assignees/participants, and activity or journal history across status transitions. | The `op` schema models service events as work packages with statuses, participants, journals, and state transitions. It is available through the local database layer and is currently not a dedicated portal tab. |
+| [SuiteCRM](https://github.com/SuiteCRM/SuiteCRM) | A modular CRM manages accounts, contacts, meetings, products, sales-related records, memberships, and customer workflows through related business modules. | The `suitecrm` schema adapts accounts, contacts, meetings, products, memberships, bookings, points ledgers, rewards, and reward claims to support member benefits and scheduled services alongside the ERP model. |
+
+The specificity of the adaptation is therefore at the schema and workflow level: table families, foreign-key relationships, status concepts, ledgers, and local permission checks are retained where useful; the original repositories’ web servers, APIs, authentication servers, and UI modules are not dependencies of this application.
+
+### 3.2 Runtime, storage, and transport references
+
+The implementation also combines established browser, device, and integration technologies:
+
+- **[Flutter](https://github.com/flutter/flutter) and [Dart](https://github.com/dart-lang/sdk):** Flutter provides the widget/rendering framework and platform build targets, while Dart provides the language and runtime used by `lib/main.dart`, the service adapters, routing, localization, and feature modules.
+- **IndexedDB:** provides browser-local object storage for the customer catalog snapshot, encrypted order envelopes, wallet-linked customer records, channels, chat, CMS items, bookings, and member sessions.
+- **[DuckDB](https://github.com/duckdb/duckdb) and DuckDB-Wasm:** DuckDB is an embedded SQL/analytics engine that executes in the host process rather than requiring a database server. The web target runs its WebAssembly build in a browser worker; Android links a native build through JNI. In this project it owns local ERP DDL, joins, aggregation, sales analysis, stock calculations, backups, and Parquet export.
+- **Web Workers and WebAssembly:** support browser-side database execution without moving the ERP workload to a conventional application server.
+- **[PeerJS](https://github.com/peers/peerjs) and WebRTC:** PeerJS supplies a browser API and signaling-assisted peer discovery, while WebRTC supplies the direct reliable data channel. This project derives a deterministic merchant peer ID from the store channel and sends order, CMS, chat, loyalty, and service messages over that connection.
+- **Native Android WebRTC:** exposes a `PeerConnectionFactory` through the Android platform layer for device-native peer capabilities.
+- **BitTorrent-style piece exchange:** the Android `PieceExchangeEngine` uses piece-oriented transfer concepts for binary content exchange and progress tracking.
+- **Android `MethodChannel`, JNI, and `DisplayManager`:** bridge Flutter to native DuckDB, WebRTC initialization, piece exchange, and compatible secondary displays.
+- **EVM wallet and EIP-1193 provider technology:** support injected wallets and browser-generated local wallets as user identity and key material.
+- **AES-GCM and wallet-derived keys:** protect customer order payloads in browser storage while preserving limited indexing fields.
+- **WebAuthn passkeys:** provide a device-bound unlock path for a locally encrypted wallet where the browser supports the required credential capability.
+- **Parquet:** provides a compact, portable export artifact for the selected order hand-off view.
+- **[FastAPI](https://github.com/fastapi/fastapi) and HTTP:** FastAPI is a Python framework used here only to implement `mock_server/main.py`, a small reference device relay. That relay exposes health checking, HMAC device attestation, and bounded binary upload; it stores the Parquet artifact and does not execute ERP SQL, host the Flutter app, or replace the local DuckDB runtime.
+- **Firebase Hosting and static SPA deployment:** host the compiled Flutter web client with client-side route rewrites. Other static hosting platforms can provide the same deployment role.
+- **Google Identity Services, Drive, and Sheets APIs:** provide optional OAuth-authorized backup, restore, spreadsheet export, and spreadsheet import.
+- **Browser notifications, printing, QR codes, and local browser storage:** provide terminal alerts, channel provisioning, printed customer entry points, and local configuration persistence.
+
+### 3.3 Problem addressed by the combination
+
+Each of the above technologies or schemas addresses a known part of the business problem, but conventional deployments commonly separate them across hosted ERP, POS, CMS, CRM, identity, chat, booking, and manufacturing services. That separation can require multiple servers, duplicate customer and catalog records, and a continuously reachable network path.
+
+The present project combines the selected capabilities in a local client while keeping the boundaries explicit: customer-side IndexedDB, merchant-side DuckDB, direct WebRTC order transfer, wallet-scoped protection, local role enforcement, and optional export to external storage. The storage relay, Google integrations, and signaling infrastructure are therefore supporting components rather than the owners of the merchant’s relational business logic.
 
 ## 4. Summary of the Disclosure
 
