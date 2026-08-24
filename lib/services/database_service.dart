@@ -17,11 +17,14 @@ class DatabaseService {
       CREATE SCHEMA IF NOT EXISTS loyalty;
       CREATE TABLE IF NOT EXISTS erp.llx_societe (
         rowid BIGINT PRIMARY KEY, nom VARCHAR NOT NULL, code_client VARCHAR,
-        email VARCHAR, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        code_fournisseur VARCHAR, client SMALLINT DEFAULT 0,
+        fournisseur SMALLINT DEFAULT 0, email VARCHAR, wallet VARCHAR,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       CREATE TABLE IF NOT EXISTS erp.llx_socpeople (
         rowid BIGINT PRIMARY KEY, fk_soc BIGINT NOT NULL, firstname VARCHAR,
-        lastname VARCHAR, phone_mobile VARCHAR,
+        lastname VARCHAR, address VARCHAR, phone_mobile VARCHAR, birthday VARCHAR,
+        wallet VARCHAR,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       CREATE TABLE IF NOT EXISTS erp.llx_commande (
@@ -184,7 +187,9 @@ class DatabaseService {
         id VARCHAR PRIMARY KEY, name VARCHAR NOT NULL
       );
       CREATE TABLE IF NOT EXISTS iam.users (
-        id VARCHAR PRIMARY KEY, display_name VARCHAR, enabled BOOLEAN DEFAULT true,
+        id VARCHAR PRIMARY KEY, keycloak_subject VARCHAR,
+        auth_provider VARCHAR DEFAULT 'keycloak', display_name VARCHAR,
+        enabled BOOLEAN DEFAULT true,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       CREATE TABLE IF NOT EXISTS iam.roles (
@@ -241,7 +246,40 @@ class DatabaseService {
       'ALTER TABLE erp.llx_socpeople ADD COLUMN IF NOT EXISTS phone_mobile VARCHAR;',
     );
     await execute(
+      'ALTER TABLE erp.llx_socpeople ADD COLUMN IF NOT EXISTS birthday VARCHAR;',
+    );
+    await execute(
+      'ALTER TABLE erp.llx_socpeople ADD COLUMN IF NOT EXISTS wallet VARCHAR;',
+    );
+    await execute(
+      'ALTER TABLE erp.llx_socpeople ADD COLUMN IF NOT EXISTS address VARCHAR;',
+    );
+    await execute(
       'ALTER TABLE erp.llx_societe ADD COLUMN IF NOT EXISTS is_merchant BOOLEAN DEFAULT false;',
+    );
+    await execute(
+      'ALTER TABLE erp.llx_societe ADD COLUMN IF NOT EXISTS code_fournisseur VARCHAR;',
+    );
+    await execute(
+      'ALTER TABLE erp.llx_societe ADD COLUMN IF NOT EXISTS client SMALLINT DEFAULT 0;',
+    );
+    await execute(
+      'ALTER TABLE erp.llx_societe ADD COLUMN IF NOT EXISTS fournisseur SMALLINT DEFAULT 0;',
+    );
+    await execute(
+      'ALTER TABLE erp.llx_societe ADD COLUMN IF NOT EXISTS store_channel VARCHAR;',
+    );
+    await execute(
+      'ALTER TABLE erp.llx_societe ADD COLUMN IF NOT EXISTS wallet VARCHAR;',
+    );
+    await execute(
+      'ALTER TABLE iam.users ADD COLUMN IF NOT EXISTS keycloak_subject VARCHAR;',
+    );
+    await execute(
+      "ALTER TABLE iam.users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR DEFAULT 'keycloak';",
+    );
+    await execute(
+      "UPDATE iam.users SET keycloak_subject = id, auth_provider = 'keycloak' WHERE keycloak_subject IS NULL;",
     );
     await execute(
       'ALTER TABLE erp.llx_product ADD COLUMN IF NOT EXISTS tax_included BOOLEAN DEFAULT true;',
@@ -423,12 +461,12 @@ class DatabaseService {
     final contactId = payload.contact['id'] as int;
     final orderId = payload.order['id'] as int;
     await execute('''
-      INSERT INTO erp.llx_societe (rowid, nom, code_client, email)
-      VALUES ($companyId, ${_q(payload.thirdparty['name'])}, ${_q(payload.thirdparty['code'])}, ${_q(payload.thirdparty['email'])})
-      ON CONFLICT (rowid) DO UPDATE SET nom = EXCLUDED.nom, code_client = EXCLUDED.code_client, email = EXCLUDED.email, updated_at = now();
-      INSERT INTO erp.llx_socpeople (rowid, fk_soc, firstname, lastname)
-      VALUES ($contactId, $companyId, ${_q(payload.contact['firstname'])}, ${_q(payload.contact['lastname'])})
-      ON CONFLICT (rowid) DO UPDATE SET fk_soc = EXCLUDED.fk_soc, firstname = EXCLUDED.firstname, lastname = EXCLUDED.lastname, updated_at = now();
+      INSERT INTO erp.llx_societe (rowid, nom, code_client, client, email)
+      VALUES ($companyId, ${_q(payload.thirdparty['name'])}, ${_q(payload.thirdparty['code'])}, 1, ${_q(payload.thirdparty['email'])})
+      ON CONFLICT (rowid) DO UPDATE SET nom = EXCLUDED.nom, code_client = EXCLUDED.code_client, client = 1, email = EXCLUDED.email, updated_at = now();
+      INSERT INTO erp.llx_socpeople (rowid, fk_soc, firstname, lastname, address, phone_mobile)
+      VALUES ($contactId, $companyId, ${_q(payload.contact['firstname'])}, ${_q(payload.contact['lastname'])}, ${payload.contact['address'] == null ? 'NULL' : _q(payload.contact['address'])}, ${payload.contact['phone_mobile'] == null ? 'NULL' : _q(payload.contact['phone_mobile'])})
+      ON CONFLICT (rowid) DO UPDATE SET fk_soc = EXCLUDED.fk_soc, firstname = EXCLUDED.firstname, lastname = EXCLUDED.lastname, address = EXCLUDED.address, phone_mobile = EXCLUDED.phone_mobile, updated_at = now();
       INSERT INTO erp.llx_commande (rowid, ref, fk_soc, total_ht, total_ttc, date_livraison, fk_statut)
       VALUES ($orderId, ${_q(payload.order['ref'])}, $companyId, ${payload.order['total_ht']}, ${payload.order['total_ttc']}, ${payload.order['date_livraison'] == null ? 'NULL' : "DATE '${payload.order['date_livraison']}'"}, ${payload.order['fk_statut'] ?? 0})
       ON CONFLICT (rowid) DO UPDATE SET ref = EXCLUDED.ref, fk_soc = EXCLUDED.fk_soc, total_ht = EXCLUDED.total_ht, total_ttc = EXCLUDED.total_ttc, date_livraison = EXCLUDED.date_livraison, fk_statut = EXCLUDED.fk_statut, updated_at = now();
@@ -446,12 +484,71 @@ class DatabaseService {
         ON CONFLICT (rowid) DO UPDATE SET fk_product = EXCLUDED.fk_product, qty = EXCLUDED.qty, subprice = EXCLUDED.subprice, total_ht = EXCLUDED.total_ht, total_ttc = EXCLUDED.total_ttc;
       ''');
     }
+    final buyerWallet = payload.contact['address']?.toString();
+    if (buyerWallet != null && buyerWallet.isNotEmpty) {
+      await ensureSuiteCrmMembership(buyerWallet);
+    }
   }
 
-  Future<void> registerMerchant(String name) async {
+  Future<void> registerMerchant(String name, {String? wallet}) async {
     final id = DateTime.now().millisecondsSinceEpoch;
+    final code = 'VEND-${id.toString()}';
     await execute('''
-      INSERT INTO erp.llx_societe (rowid, nom, is_merchant) VALUES ($id, ${_q(name)}, true);
+      INSERT INTO erp.llx_societe (rowid, nom, code_fournisseur, fournisseur, is_merchant)
+      VALUES ($id, ${_q(name)}, ${_q(code)}, 1, true);
+    ''');
+    if (wallet != null && wallet.trim().isNotEmpty) {
+      await upsertWalletContact(wallet: wallet, phoneMobile: '', birthday: '');
+    }
+  }
+
+  Future<Map<String, dynamic>?> merchantStore() async {
+    final rows = await this.rows('''
+      SELECT s.rowid, s.nom, s.store_channel, s.fournisseur,
+             c.address AS wallet
+      FROM erp.llx_societe s
+      LEFT JOIN erp.llx_socpeople c ON c.fk_soc = s.rowid
+        AND c.firstname = 'Wallet'
+      WHERE s.fournisseur = 1 OR s.is_merchant = true
+      ORDER BY s.rowid
+      LIMIT 1
+    ''');
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  Future<void> setMerchantChannel(String channel) async {
+    await execute('''
+      UPDATE erp.llx_societe SET store_channel = ${_q(channel)}, fournisseur = 1, updated_at = now()
+      WHERE fournisseur = 1 OR is_merchant = true;
+    ''');
+  }
+
+  Future<void> upsertWalletContact({
+    required String wallet,
+    required String phoneMobile,
+    required String birthday,
+  }) async {
+    final normalized = wallet.trim().toLowerCase();
+    if (normalized.length < 18 || !normalized.startsWith('0x')) return;
+    final merchantRows = await rows(
+      'SELECT rowid FROM erp.llx_societe WHERE fournisseur = 1 OR is_merchant = true ORDER BY rowid LIMIT 1',
+    );
+    if (merchantRows.isEmpty) return;
+    final companyId = int.parse(merchantRows.first['rowid'].toString());
+    final shortWallet = normalized.length > 12
+        ? '${normalized.substring(0, 6)}…${normalized.substring(normalized.length - 4)}'
+        : normalized;
+    final existingContact = await rows(
+      'SELECT rowid FROM erp.llx_socpeople WHERE fk_soc = $companyId AND address = ${_q(normalized)} LIMIT 1',
+    );
+    final resolvedContactId = existingContact.isEmpty
+        ? DateTime.now().microsecondsSinceEpoch
+        : int.parse(existingContact.first['rowid'].toString());
+    await execute('''
+      UPDATE erp.llx_societe SET fournisseur = 1, is_merchant = true, updated_at = now() WHERE rowid = $companyId;
+      INSERT INTO erp.llx_socpeople (rowid, fk_soc, firstname, lastname, address, phone_mobile, birthday)
+      VALUES ($resolvedContactId, $companyId, ${_q('Wallet')}, ${_q(shortWallet)}, ${_q(normalized)}, ${_q(phoneMobile)}, ${_q(birthday)})
+      ON CONFLICT (rowid) DO UPDATE SET fk_soc = EXCLUDED.fk_soc, firstname = EXCLUDED.firstname, lastname = EXCLUDED.lastname, address = EXCLUDED.address, phone_mobile = EXCLUDED.phone_mobile, birthday = EXCLUDED.birthday, updated_at = now();
     ''');
   }
 
@@ -601,8 +698,8 @@ class DatabaseService {
     );
     if (existing.isEmpty) {
       await execute('''
-        INSERT INTO erp.llx_societe (rowid, nom, code_client, is_merchant)
-        VALUES ($walkInId, ${_q('Walk-in customer')}, ${_q('WALKIN')}, false);
+        INSERT INTO erp.llx_societe (rowid, nom, code_client, client, is_merchant)
+        VALUES ($walkInId, ${_q('Walk-in customer')}, ${_q('WALKIN')}, 1, false);
       ''');
     }
     return walkInId;
@@ -1018,14 +1115,46 @@ class DatabaseService {
 
   String _newId() => DateTime.now().microsecondsSinceEpoch.toRadixString(16);
 
+  Future<int> ensureBuyerThirdParty(String wallet) async {
+    final normalized = wallet.trim().toLowerCase();
+    if (normalized.isEmpty) throw ArgumentError.value(wallet, 'wallet');
+    final id = normalized.startsWith('0x') && normalized.length >= 10
+        ? int.parse(normalized.substring(2, 10), radix: 16)
+        : normalized.codeUnits.fold<int>(0, (sum, value) => sum * 31 + value);
+    final shortWallet = normalized.length > 12
+        ? '${normalized.substring(0, 6)}…${normalized.substring(normalized.length - 4)}'
+        : normalized;
+    final codeSeed = normalized.startsWith('0x')
+        ? normalized.substring(2)
+        : normalized;
+    final codeSuffix = codeSeed
+        .substring(0, codeSeed.length > 6 ? 6 : codeSeed.length)
+        .toUpperCase();
+    await execute('''
+      INSERT INTO erp.llx_societe
+        (rowid, nom, code_client, client, fournisseur, email)
+      VALUES ($id, ${_q('Account $shortWallet')}, ${_q('ACCT-$codeSuffix')}, 1, 0, ${_q('account@local.invalid')})
+      ON CONFLICT (rowid) DO UPDATE SET client = 1, fournisseur = 0,
+        updated_at = now();
+      INSERT INTO erp.llx_socpeople
+        (rowid, fk_soc, firstname, lastname, address)
+      VALUES (${id + 1}, $id, ${_q('Member')}, ${_q(shortWallet)}, ${_q(normalized)})
+      ON CONFLICT (rowid) DO UPDATE SET fk_soc = EXCLUDED.fk_soc,
+        address = EXCLUDED.address, updated_at = now();
+    ''');
+    return id;
+  }
+
   Future<String> ensureLoyaltyAccount(String wallet) async {
+    final normalized = wallet.trim().toLowerCase();
+    await ensureBuyerThirdParty(normalized);
     final existing = await rows(
-      'SELECT id FROM loyalty.accounts WHERE contact_wallet = ${_q(wallet)} AND deleted = false',
+      'SELECT id FROM loyalty.accounts WHERE contact_wallet = ${_q(normalized)} AND deleted = false',
     );
     if (existing.isNotEmpty) return existing.first['id'].toString();
     final id = _newId();
     await execute('''
-      INSERT INTO loyalty.accounts (id, contact_wallet) VALUES (${_q(id)}, ${_q(wallet)});
+      INSERT INTO loyalty.accounts (id, contact_wallet) VALUES (${_q(id)}, ${_q(normalized)});
     ''');
     return id;
   }
@@ -1059,6 +1188,26 @@ class DatabaseService {
   Future<void> earnPoints(String wallet, int points, String reason) =>
       _applyPointsDelta(wallet, points, reason);
 
+  Future<void> awardPurchasePoints(
+    String wallet,
+    int points,
+    String reason,
+  ) async {
+    final membershipId = await ensureSuiteCrmMembership(wallet);
+    if (points <= 0) return;
+    await earnPoints(wallet, points, reason);
+    await execute('''
+      INSERT INTO suitecrm.points_ledger
+        (id, membership_id, points, transaction_type, description)
+      VALUES (${_q(_newId())}, ${_q(membershipId)}, $points, 'earn', ${_q(reason)});
+      UPDATE suitecrm.memberships
+      SET points_balance = points_balance + $points,
+          lifetime_points = lifetime_points + $points,
+          date_modified = now()
+      WHERE id = ${_q(membershipId)};
+    ''');
+  }
+
   Future<void> redeemPoints(String wallet, int points, String reason) =>
       _applyPointsDelta(wallet, -points, reason);
 
@@ -1082,15 +1231,17 @@ class DatabaseService {
   }
 
   Future<String> ensureSuiteCrmMembership(String wallet) async {
+    await ensureBuyerThirdParty(wallet);
+    final normalized = wallet.trim().toLowerCase();
     final accountRows = await rows(
-      'SELECT id FROM suitecrm.accounts WHERE name = ${_q(wallet)} AND deleted = false',
+      'SELECT id FROM suitecrm.accounts WHERE name = ${_q(normalized)} AND deleted = false',
     );
     final accountId = accountRows.isNotEmpty
         ? accountRows.first['id'].toString()
         : _newId();
     if (accountRows.isEmpty) {
       await execute('''
-        INSERT INTO suitecrm.accounts (id, name) VALUES (${_q(accountId)}, ${_q(wallet)});
+        INSERT INTO suitecrm.accounts (id, name) VALUES (${_q(accountId)}, ${_q(normalized)});
       ''');
     }
     final contactRows = await rows(
@@ -1102,7 +1253,7 @@ class DatabaseService {
     if (contactRows.isEmpty) {
       await execute('''
         INSERT INTO suitecrm.contacts (id, account_id, first_name, last_name)
-        VALUES (${_q(contactId)}, ${_q(accountId)}, ${_q('Member')}, ${_q(wallet)});
+        VALUES (${_q(contactId)}, ${_q(accountId)}, ${_q('Member')}, ${_q(normalized)});
       ''');
     }
     final membershipRows = await rows(
@@ -1719,7 +1870,12 @@ class DatabaseService {
       'SELECT id FROM iam.users WHERE id = ${_q(wallet)}',
     );
     if (existing.isNotEmpty) return;
-    await execute('INSERT INTO iam.users (id) VALUES (${_q(wallet)});');
+    // The Keycloak subject is the stable IAM identity. Wallet is retained as
+    // the current subject fallback until the browser supplies a JWT subject.
+    await execute('''
+      INSERT INTO iam.users (id, keycloak_subject, auth_provider)
+      VALUES (${_q(wallet)}, ${_q(wallet)}, 'keycloak');
+    ''');
   }
 
   Future<void> grantRole(String wallet, String roleId) async {
@@ -1741,7 +1897,8 @@ class DatabaseService {
 
   Future<List<Map<String, dynamic>>> iamUsers() async {
     return rows('''
-      SELECT u.id AS wallet, u.display_name, u.enabled, r.id AS role_id, r.name AS role_name
+      SELECT u.id AS wallet, u.keycloak_subject, u.auth_provider,
+             u.display_name, u.enabled, r.id AS role_id, r.name AS role_name
       FROM iam.users u
       LEFT JOIN iam.user_role_mapping m ON m.user_id = u.id
       LEFT JOIN iam.roles r ON r.id = m.role_id

@@ -5,6 +5,7 @@ import 'dart:html' as html;
 import 'dart:js_util' as js_util;
 import 'dart:ui_web' as ui_web;
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'models/order_payload.dart';
@@ -23,6 +24,7 @@ import 'services/backup_service.dart';
 import 'services/webrtc_service.dart';
 import 'services/notification_service.dart';
 import 'services/device_qr_service.dart';
+import 'services/second_display_service.dart';
 import 'services/google_workspace_service.dart';
 
 void main() => runApp(const LilyGoApp());
@@ -41,6 +43,9 @@ String _localeCode(Locale locale) => locale.countryCode != null
 
 bool _isPortalRoute() =>
     Uri.base.path == '/portal' || Uri.base.fragment == '/portal';
+
+bool _isSecondDisplayRoute() =>
+    Uri.base.queryParameters['second_display'] == '1';
 
 Locale _parseLocaleCode(String code) {
   final parts = code.split('_');
@@ -84,21 +89,29 @@ const _storefrontThemeOptions = <Map<String, String>>[
     'id': 'classic',
     'label': 'Classic Storefront',
     'description': 'WooCommerce-style header, cards, and product grid.',
+    'category': 'General',
+    'swatch': '#173D72',
   },
   {
     'id': 'boutique',
     'label': 'Boutique',
     'description': 'Soft editorial colors with rounded product cards.',
+    'category': 'Retail',
+    'swatch': '#C08497',
   },
   {
     'id': 'restaurant',
     'label': 'Restaurant Menu',
     'description': 'Warm menu presentation for restaurants and cafes.',
+    'category': 'Food & Beverage',
+    'swatch': '#B5651D',
   },
   {
     'id': 'marketplace',
     'label': 'Marketplace',
     'description': 'Compact commerce layout for larger product catalogs.',
+    'category': 'Marketplace',
+    'swatch': '#2E7D32',
   },
 ];
 
@@ -123,6 +136,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
   final googleWorkspace = GoogleWorkspaceService();
   final webRtc = WebRtcService();
   final notifications = NotificationService();
+  final secondDisplay = SecondDisplayService();
   late final ApiService api;
   StreamSubscription<OrderPayload>? subscription;
   Timer? _rtcPollTimer;
@@ -139,6 +153,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
   bool clientReady = true;
   String activeChannel = Uri.base.queryParameters['channel'] ?? 'default';
   String? walletAddress;
+  Map<String, dynamic>? clientLoyaltyAccount;
   int clientTransactionCount = 0;
   double clientTransactionTotal = 0;
   bool walletInitialized = false;
@@ -174,6 +189,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
   List<Map<String, dynamic>> downtimeHistoryList = [];
   String bookingsView = 'bookings';
   String contentStatusFilter = 'all';
+  String themeCategoryFilter = 'All';
   List<Map<String, dynamic>> clientBookings = [];
   Set<String> myPermissions = {};
   List<Map<String, dynamic>> iamUsersList = [];
@@ -208,6 +224,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
   void initState() {
     super.initState();
     api = ApiService();
+    if (_isSecondDisplayRoute()) return;
     if (!_isPortalRoute() && Uri.base.queryParameters['demo'] == '1') {
       walletAddress = 'demo-mode';
       localMemberAvailable = true;
@@ -385,7 +402,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
         ORDER BY p.rowid DESC
       '''),
       db.rows(
-        'SELECT rowid, nom, code_client, email, updated_at FROM erp.llx_societe WHERE is_merchant = false ORDER BY rowid DESC',
+        'SELECT rowid, nom, code_client, email, updated_at FROM erp.llx_societe WHERE client = 1 AND fournisseur = 0 ORDER BY rowid DESC',
       ),
       db.rows(
         'SELECT c.rowid, c.ref, c.fk_statut, c.date_livraison, s.nom AS customer, p.label AS product, d.qty, d.subprice, d.total_ht, d.total_ttc FROM erp.llx_commande c JOIN erp.llx_societe s ON s.rowid = c.fk_soc JOIN erp.llx_commandedet d ON d.fk_commande = c.rowid JOIN erp.llx_product p ON p.rowid = d.fk_product ORDER BY c.rowid DESC',
@@ -441,6 +458,15 @@ class _LilyGoAppState extends State<LilyGoApp> {
   }
 
   Future<void> _setOrderStatus(int orderId, int nextStatus) async {
+    if (!myPermissions.contains('orders.manage')) {
+      await _refresh();
+      if (mounted) {
+        setState(
+          () => status = 'Status update not permitted; record restored.',
+        );
+      }
+      return;
+    }
     await db.updateOrderStatus(orderId, nextStatus);
     await _refresh();
     final statusLabel = orderStatusLabel(
@@ -473,8 +499,8 @@ class _LilyGoAppState extends State<LilyGoApp> {
       stock: result.stock,
       categoryId: result.categoryId,
       taxIncluded: result.taxIncluded,
-      photo: row?['photo'] as String?,
-      photoMime: row?['photo_mime'] as String?,
+      photo: result.photo,
+      photoMime: result.photoMime,
       description: result.description,
       barcode: result.barcode,
       productType: result.productType,
@@ -935,19 +961,37 @@ class _LilyGoAppState extends State<LilyGoApp> {
 
   Future<void> _ensurePortalAccess(String address, String storeName) async {
     if (!_isPortalRoute()) return;
-    final merchantRows = await db.rows(
-      'SELECT rowid FROM erp.llx_societe WHERE is_merchant = true LIMIT 1',
-    );
-    final createdMerchant = merchantRows.isEmpty;
+    final merchant = await db.merchantStore();
+    final createdMerchant = merchant == null;
     final resolvedStoreName = storeName.trim().isEmpty
         ? _l.storeNameDefault
         : storeName.trim();
-    if (createdMerchant) await db.registerMerchant(resolvedStoreName);
-    await db.grantRole(address, 'owner');
+    if (createdMerchant) {
+      await db.registerMerchant(resolvedStoreName, wallet: address);
+    }
+    final merchantWallet = merchant?['wallet']?.toString().toLowerCase();
+    if (createdMerchant || merchantWallet == address.toLowerCase()) {
+      await db.grantRole(address, 'owner');
+    }
     await _refreshMyPermissions();
     await _refreshIam();
     await _refresh();
-    if (createdMerchant) await _autoProvisionChannel(resolvedStoreName);
+    if (createdMerchant) {
+      await _autoProvisionChannel(resolvedStoreName);
+    } else {
+      final existing = merchant?['store_channel']?.toString();
+      if (existing != null && existing.isNotEmpty) {
+        activeChannel = existing;
+        await webRtc.initialize(portal: true, channel: existing);
+        final roomId = await db.ensureChannelRoom(existing);
+        final role = merchantWallet == address.toLowerCase()
+            ? 'owner'
+            : 'agent';
+        await db.addSubscription(roomId, address, role: role);
+      } else {
+        await _autoProvisionChannel(resolvedStoreName);
+      }
+    }
   }
 
   Future<void> _finishWalletLogin(String address, {bool local = false}) async {
@@ -970,6 +1014,9 @@ class _LilyGoAppState extends State<LilyGoApp> {
       });
     await _loadClientStats();
     await _loadWalletProfile(address);
+    if (!_isPortalRoute()) {
+      _sendRtcMessage({'type': 'loyalty_balance_request', 'wallet': address});
+    }
     if (_isPortalRoute()) {
       await _start();
       await _refreshMyPermissions();
@@ -982,27 +1029,22 @@ class _LilyGoAppState extends State<LilyGoApp> {
     var permissions = walletAddress == 'demo-mode'
         ? DatabaseService.permissionCatalog.toSet()
         : await db.permissionsForWallet(walletAddress!);
-    // A wallet can outlive a partially initialized DuckDB session. Recover
-    // the portal owner mapping before rendering an empty workspace.
-    if (_isPortalRoute() &&
-        walletAddress != null &&
-        walletAddress != 'demo-mode' &&
-        permissions.isEmpty) {
-      await db.grantRole(walletAddress!, 'owner');
-      permissions = await db.permissionsForWallet(walletAddress!);
-      if (permissions.isEmpty) {
-        // Keep a valid authenticated owner usable even when an older local
-        // DuckDB snapshot has no IAM rows yet; the next refresh repairs it.
-        permissions = DatabaseService.permissionCatalog.toSet();
-      }
-    }
     if (mounted) setState(() => myPermissions = permissions);
   }
 
   Future<void> _loadWalletProfile(String address) async {
     final thirdparty = await indexedDb.walletThirdParty(address.toLowerCase());
     final envelope = thirdparty?['encrypted_profile']?.toString();
-    if (envelope == null || envelope == 'null' || envelope.isEmpty) return;
+    if (envelope == null || envelope == 'null' || envelope.isEmpty) {
+      if (_isPortalRoute()) {
+        await db.upsertWalletContact(
+          wallet: address,
+          phoneMobile: '',
+          birthday: '',
+        );
+      }
+      return;
+    }
     try {
       final profile = await walletCrypto.decrypt(envelope);
       final localeCode = profile['locale']?.toString();
@@ -1017,6 +1059,13 @@ class _LilyGoAppState extends State<LilyGoApp> {
           if (localeCode != null && localeCode.isNotEmpty)
             currentLocale = _parseLocaleCode(localeCode);
         });
+      if (_isPortalRoute()) {
+        await db.upsertWalletContact(
+          wallet: address,
+          phoneMobile: walletMobile,
+          birthday: walletBirthday,
+        );
+      }
     } catch (_) {
       if (mounted) setState(() => status = _l.statusProfileDecryptError);
     }
@@ -1132,6 +1181,13 @@ class _LilyGoAppState extends State<LilyGoApp> {
       updated['encrypted_profile'] = null;
     }
     await indexedDb.saveWalletThirdParty(updated);
+    if (_isPortalRoute()) {
+      await db.upsertWalletContact(
+        wallet: address,
+        phoneMobile: remember ? mobileValue : '',
+        birthday: remember ? birthdayValue : '',
+      );
+    }
     mobile.dispose();
     birthday.dispose();
     if (mounted)
@@ -1387,6 +1443,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
       'wallet': normalized,
       'nom': 'Account ${_shortWallet(address)}',
       'code_client': 'ACCT-${normalized.substring(2, 8).toUpperCase()}',
+      'client': 1,
       'email': 'account@local.invalid',
       'updated_at': DateTime.now().toIso8601String(),
     };
@@ -1566,7 +1623,13 @@ class _LilyGoAppState extends State<LilyGoApp> {
       'channel': activeChannel,
       'wallet': walletAddress,
       'payment_method': 'cash',
-      'contact': {'id': transactionId + 1, 'firstname': '', 'lastname': ''},
+      'contact': {
+        'id': transactionId + 1,
+        'firstname': '',
+        'lastname': '',
+        'address': walletAddress,
+        'phone_mobile': walletMobile,
+      },
       'order': {
         'id': transactionId,
         'ref': 'WEB-$transactionId',
@@ -1717,34 +1780,15 @@ class _LilyGoAppState extends State<LilyGoApp> {
   }
 
   Future<void> _createChannel() async {
-    final l = _l;
-    final nameController = TextEditingController();
-    final name = await showDialog<String>(
-      context: navigatorKey.currentContext!,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l.createChannelButton),
-        content: TextField(
-          controller: nameController,
-          decoration: InputDecoration(
-            labelText: l.channelNameFieldLabel,
-            border: const OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(l.cancelButton),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, nameController.text),
-            child: Text(l.createButton),
-          ),
-        ],
-      ),
-    );
-    nameController.dispose();
-    if (name == null) return;
-    await _provisionChannel(name);
+    final store = await db.merchantStore();
+    final existing = store?['store_channel']?.toString();
+    if (existing != null && existing.isNotEmpty) {
+      activeChannel = existing;
+      await webRtc.initialize(portal: true, channel: existing);
+      await _showChannelLink(existing);
+      return;
+    }
+    await _provisionChannel(store?['nom']?.toString() ?? _l.storeNameDefault);
   }
 
   Future<void> _autoProvisionChannel(String storeName) async {
@@ -1757,7 +1801,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
   Future<void> _provisionChannel(String name) async {
     final l = _l;
     final merchantRows = await db.rows(
-      'SELECT rowid, nom FROM erp.llx_societe WHERE is_merchant = true ORDER BY rowid LIMIT 1',
+      'SELECT rowid, nom FROM erp.llx_societe WHERE fournisseur = 1 OR is_merchant = true ORDER BY rowid LIMIT 1',
     );
     final merchantId = merchantRows.isEmpty
         ? null
@@ -1765,12 +1809,23 @@ class _LilyGoAppState extends State<LilyGoApp> {
     final channel = await indexedDb.createChannel(name, merchantId: merchantId);
     final code = channel['code'].toString();
     activeChannel = code;
+    await db.setMerchantChannel(code);
+    merchantLinks.save(
+      channel: code,
+      link: '${Uri.base.origin}/?channel=$code',
+      name: name,
+    );
     await webRtc.initialize(portal: true, channel: code);
     final roomId = await db.ensureChannelRoom(code);
     if (walletAddress != null) {
       await db.addSubscription(roomId, walletAddress!, role: 'owner');
     }
     await _logChannelEvent(l.channelCreatedLog(code, name), channelCode: code);
+    await _showChannelLink(code);
+  }
+
+  Future<void> _showChannelLink(String code) async {
+    final l = _l;
     final link = '${Uri.base.origin}/?channel=$code';
     final qrPng = await _channelQrPng(link);
     if (!mounted) return;
@@ -1800,6 +1855,32 @@ class _LilyGoAppState extends State<LilyGoApp> {
             icon: const Icon(Icons.print_outlined),
             label: Text(l.printButton),
           ),
+          OutlinedButton.icon(
+            onPressed: () async {
+              final opened = secondDisplay.open(
+                '${Uri.base.origin}/?second_display=1&channel=${Uri.encodeQueryComponent(code)}',
+              );
+              if (opened && dialogContext.mounted) Navigator.pop(dialogContext);
+            },
+            icon: const Icon(Icons.tv_outlined),
+            label: const Text('2nd display QR'),
+          ),
+          if (channelPrint.thermalSupported)
+            OutlinedButton.icon(
+              onPressed: () async {
+                try {
+                  await channelPrint.printThermal(code, link);
+                } catch (error) {
+                  if (mounted) {
+                    setState(
+                      () => status = 'Thermal printer unavailable: $error',
+                    );
+                  }
+                }
+              },
+              icon: const Icon(Icons.receipt_long_outlined),
+              label: const Text('Thermal print'),
+            ),
         ],
       ),
     );
@@ -1887,6 +1968,24 @@ class _LilyGoAppState extends State<LilyGoApp> {
   Future<void> _refreshMenuContent() async {
     final items = await db.cmsItems('site_content');
     if (mounted) setState(() => menuContentItems = items);
+  }
+
+  // _storefrontThemeId() resolves from clientSiteContent, which only
+  // refreshes via a synced cms_sync echo (see the 'type' == 'cms_sync'
+  // handler) rather than the portal's own just-saved draft — so it doesn't
+  // reflect a selection the merchant just made. The gallery reads the
+  // portal's own menuContentItems copy first (refreshed synchronously by
+  // _setStorefrontTheme) and only falls back for the very first render.
+  String _portalSelectedThemeId() {
+    final saved = menuContentItems
+        .firstWhere(
+          (item) => item['ref']?.toString() == 'site.theme',
+          orElse: () => const {},
+        )['label']
+        ?.toString();
+    return _storefrontThemeOptions.any((theme) => theme['id'] == saved)
+        ? saved!
+        : _storefrontThemeId();
   }
 
   String _storefrontThemeId() {
@@ -2851,6 +2950,12 @@ class _LilyGoAppState extends State<LilyGoApp> {
       await _connectWallet();
       return;
     }
+    if (!_isPortalRoute()) {
+      _sendRtcMessage({
+        'type': 'loyalty_balance_request',
+        'wallet': walletAddress,
+      });
+    }
     final l = _l;
     await showModalBottomSheet<void>(
       context: navigatorKey.currentContext!,
@@ -2865,6 +2970,16 @@ class _LilyGoAppState extends State<LilyGoApp> {
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
+            if (clientLoyaltyAccount != null)
+              ListTile(
+                leading: const Icon(Icons.loyalty_outlined),
+                title: Text(
+                  'Loyalty points: ${clientLoyaltyAccount!['points_balance'] ?? 0}',
+                ),
+                subtitle: Text(
+                  'Tier: ${clientLoyaltyAccount!['tier'] ?? 'standard'}',
+                ),
+              ),
             ListTile(
               leading: const Icon(Icons.contact_page_outlined),
               title: Text(l.preferencesButton),
@@ -3257,9 +3372,52 @@ class _LilyGoAppState extends State<LilyGoApp> {
       final wallet = envelope['wallet']?.toString();
       final points = (envelope['points'] as num?)?.toInt() ?? 0;
       final reason = envelope['reason']?.toString() ?? '';
-      if (wallet != null && points > 0) {
-        await db.earnPoints(wallet, points, reason);
+      if (wallet != null) {
+        await db.awardPurchasePoints(wallet, points, reason);
         await _refreshLoyalty();
+        final account = await db.loyaltyAccount(wallet);
+        final targetPeerId = envelope['__peer_id']?.toString();
+        if (targetPeerId != null) {
+          _sendRtcMessage({
+            'type': 'loyalty_balance',
+            'wallet': wallet,
+            'points_balance': account?['points_balance'] ?? 0,
+            'tier': account?['tier'] ?? 'standard',
+            '__target_peer_id': targetPeerId,
+          });
+        }
+      }
+      return;
+    }
+    if (type == 'loyalty_balance_request') {
+      if (!_isPortalRoute()) return;
+      final wallet = envelope['wallet']?.toString();
+      final targetPeerId = envelope['__peer_id']?.toString();
+      if (wallet == null || targetPeerId == null) return;
+      final account = await db.loyaltyAccount(wallet);
+      _sendRtcMessage({
+        'type': 'loyalty_balance',
+        'wallet': wallet,
+        'points_balance': account?['points_balance'] ?? 0,
+        'tier': account?['tier'] ?? 'standard',
+        '__target_peer_id': targetPeerId,
+      });
+      return;
+    }
+    if (type == 'loyalty_balance') {
+      if (_isPortalRoute()) return;
+      if (walletAddress != null &&
+          envelope['wallet']?.toString().toLowerCase() ==
+              walletAddress!.toLowerCase()) {
+        if (mounted) {
+          setState(() {
+            clientLoyaltyAccount = {
+              'contact_wallet': walletAddress,
+              'points_balance': envelope['points_balance'] ?? 0,
+              'tier': envelope['tier'] ?? 'standard',
+            };
+          });
+        }
       }
       return;
     }
@@ -3450,7 +3608,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
     _sendRtcMessage({
       'type': 'cms_sync',
       'collection': 'site_content',
-      'items': await db.cmsItems('site_content'),
+      'items': await db.cmsItems('site_content', status: 'published'),
       '__target_peer_id': targetPeerId,
     });
   }
@@ -3590,12 +3748,62 @@ class _LilyGoAppState extends State<LilyGoApp> {
       ),
     ),
     navigatorKey: navigatorKey,
-    initialRoute: _isPortalRoute() ? '/portal' : '/',
-    routes: {'/': (_) => _clientHome(), '/portal': (_) => _portal()},
+    initialRoute: _isSecondDisplayRoute()
+        ? '/second-display'
+        : (_isPortalRoute() ? '/portal' : '/'),
+    routes: {
+      '/': (_) => _clientHome(),
+      '/portal': (_) => _portal(),
+      '/second-display': (_) => _secondDisplay(),
+    },
     locale: currentLocale,
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
   );
+
+  Widget _secondDisplay() {
+    final channel = Uri.base.queryParameters['channel'] ?? activeChannel;
+    final link =
+        '${Uri.base.origin}/?channel=${Uri.encodeQueryComponent(channel)}';
+    return Scaffold(
+      backgroundColor: const Color(0xFF071A2B),
+      body: Center(
+        child: Card(
+          margin: const EdgeInsets.all(24),
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.storefront_outlined, size: 46),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Connect to this store',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Scan this QR code to open channel $channel',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  QrImageView(
+                    data: link,
+                    size: 360,
+                    backgroundColor: Colors.white,
+                  ),
+                  const SizedBox(height: 16),
+                  SelectableText(link, textAlign: TextAlign.center),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   String _clientSiteText(
     String ref,
@@ -3788,6 +3996,16 @@ class _LilyGoAppState extends State<LilyGoApp> {
                   onPressed: _connectWallet,
                   icon: const Icon(Icons.person_add_alt_1_outlined),
                   label: const Text('Register member'),
+                ),
+              ),
+            if (clientLoyaltyAccount != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Chip(
+                  avatar: const Icon(Icons.loyalty_outlined, size: 18),
+                  label: Text(
+                    '${clientLoyaltyAccount!['points_balance'] ?? 0} points',
+                  ),
                 ),
               ),
             IconButton(
@@ -4277,17 +4495,25 @@ class _LilyGoAppState extends State<LilyGoApp> {
   Widget _productPhoto(Map<String, dynamic> product, {double? height}) {
     final photo = product['photo']?.toString();
     if (photo == null || photo.isEmpty) return const SizedBox.shrink();
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: Image.asset(
-        photo,
-        height: height,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-      ),
-    );
+    final photoMime = product['photo_mime']?.toString();
+    final image = (photoMime != null && photoMime.isNotEmpty)
+        ? Image.memory(
+            base64Decode(photo),
+            height: height,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          )
+        : Image.asset(
+            photo,
+            height: height,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          );
+    return ClipRRect(borderRadius: BorderRadius.circular(12), child: image);
   }
 
   Widget _clientCartBar() {
@@ -4513,169 +4739,268 @@ class _LilyGoAppState extends State<LilyGoApp> {
     final connectionIndex = sections.indexWhere(
       (s) => s.$3 == 'connection.manage',
     );
-    return DefaultTabController(
-      length: sections.length,
-      child: Builder(
-        builder: (tabContext) {
-          final controller = DefaultTabController.of(tabContext);
-          final destinations = sections.map((s) => (s.$1, s.$2)).toList();
-          return Scaffold(
-            appBar: AppBar(
-              title: _BrandTitle(l.appTitle),
-              actions: [
-                if (walletAddress == 'demo-mode') ...[
-                  Chip(
-                    label: Text(l.demoModeBannerText),
-                    backgroundColor: Colors.amber.shade200,
+    final portalTheme = Theme.of(navigatorKey.currentContext!).copyWith(
+      scaffoldBackgroundColor: const Color(0xFFF3F6F8),
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF25AEDD),
+        primary: const Color(0xFF25AEDD),
+        secondary: const Color(0xFFF4A11A),
+        surface: Colors.white,
+        surfaceContainerHighest: const Color(0xFFEAF3F7),
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.white,
+        foregroundColor: Color(0xFF1B8EB9),
+        elevation: 0,
+        centerTitle: false,
+      ),
+      cardTheme: CardThemeData(
+        color: Colors.white,
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: Color(0xFFD7E8EE)),
+        ),
+      ),
+    );
+    return Theme(
+      data: portalTheme,
+      child: DefaultTabController(
+        length: sections.length,
+        child: Builder(
+          builder: (tabContext) {
+            final controller = DefaultTabController.of(tabContext);
+            final destinations = sections.map((s) => (s.$1, s.$2)).toList();
+            return Scaffold(
+              appBar: AppBar(
+                title: _BrandTitle(l.appTitle),
+                actions: [
+                  if (walletAddress == 'demo-mode') ...[
+                    Chip(
+                      label: Text(l.demoModeBannerText),
+                      backgroundColor: Colors.amber.shade200,
+                    ),
+                    TextButton(
+                      onPressed: _exitDemoMode,
+                      child: Text(l.exitDemoButton),
+                    ),
+                  ] else
+                    Chip(label: Text(_shortWallet(walletAddress!))),
+                  _connectionChip(
+                    onTap: connectionIndex < 0
+                        ? null
+                        : () {
+                            setState(() => portalSection = connectionIndex);
+                            controller.animateTo(connectionIndex);
+                          },
                   ),
-                  TextButton(
-                    onPressed: _exitDemoMode,
-                    child: Text(l.exitDemoButton),
-                  ),
-                ] else
-                  Chip(label: Text(_shortWallet(walletAddress!))),
-                _connectionChip(
-                  onTap: connectionIndex < 0
-                      ? null
-                      : () {
-                          setState(() => portalSection = connectionIndex);
-                          controller.animateTo(connectionIndex);
-                        },
-                ),
-                _languageSwitcher(),
-                IconButton(
-                  onPressed: _editPreferences,
-                  icon: const Icon(Icons.contact_page_outlined),
-                  tooltip: l.preferencesTooltip,
-                ),
-                if (visiblePermissions.contains('settings.manage')) ...[
+                  _languageSwitcher(),
                   IconButton(
-                    onPressed: _exportBackup,
-                    icon: const Icon(Icons.download_outlined),
-                    tooltip: l.backupTooltip,
+                    onPressed: _editPreferences,
+                    icon: const Icon(Icons.contact_page_outlined),
+                    tooltip: l.preferencesTooltip,
                   ),
+                  if (visiblePermissions.contains('settings.manage')) ...[
+                    IconButton(
+                      onPressed: _exportBackup,
+                      icon: const Icon(Icons.download_outlined),
+                      tooltip: l.backupTooltip,
+                    ),
+                    IconButton(
+                      onPressed: _importBackup,
+                      icon: const Icon(Icons.upload_outlined),
+                      tooltip: l.restoreTooltip,
+                    ),
+                    IconButton(
+                      onPressed: _backupToGoogleDrive,
+                      icon: const Icon(Icons.cloud_upload_outlined),
+                      tooltip: l.googleDriveBackupTooltip,
+                    ),
+                    IconButton(
+                      onPressed: _restoreFromGoogleDrive,
+                      icon: const Icon(Icons.cloud_download_outlined),
+                      tooltip: l.googleDriveRestoreTooltip,
+                    ),
+                    IconButton(
+                      onPressed: _exportToGoogleSheet,
+                      icon: const Icon(Icons.table_view_outlined),
+                      tooltip: l.googleSheetExportTooltip,
+                    ),
+                    IconButton(
+                      onPressed: _importFromGoogleSheet,
+                      icon: const Icon(Icons.table_rows_outlined),
+                      tooltip: l.googleSheetImportTooltip,
+                    ),
+                    IconButton(
+                      onPressed: _resetAllData,
+                      icon: const Icon(Icons.delete_sweep_outlined),
+                      tooltip: l.resetDataButton,
+                    ),
+                  ],
                   IconButton(
-                    onPressed: _importBackup,
-                    icon: const Icon(Icons.upload_outlined),
-                    tooltip: l.restoreTooltip,
-                  ),
-                  IconButton(
-                    onPressed: _backupToGoogleDrive,
-                    icon: const Icon(Icons.cloud_upload_outlined),
-                    tooltip: l.googleDriveBackupTooltip,
-                  ),
-                  IconButton(
-                    onPressed: _restoreFromGoogleDrive,
-                    icon: const Icon(Icons.cloud_download_outlined),
-                    tooltip: l.googleDriveRestoreTooltip,
-                  ),
-                  IconButton(
-                    onPressed: _exportToGoogleSheet,
-                    icon: const Icon(Icons.table_view_outlined),
-                    tooltip: l.googleSheetExportTooltip,
-                  ),
-                  IconButton(
-                    onPressed: _importFromGoogleSheet,
-                    icon: const Icon(Icons.table_rows_outlined),
-                    tooltip: l.googleSheetImportTooltip,
-                  ),
-                  IconButton(
-                    onPressed: _resetAllData,
-                    icon: const Icon(Icons.delete_sweep_outlined),
-                    tooltip: l.resetDataButton,
+                    onPressed: _refresh,
+                    icon: const Icon(Icons.refresh),
+                    tooltip: l.refreshTooltip,
                   ),
                 ],
-                IconButton(
-                  onPressed: _refresh,
-                  icon: const Icon(Icons.refresh),
-                  tooltip: l.refreshTooltip,
-                ),
-              ],
-            ),
-            body: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Material(
-                  color: Colors.white,
-                  child: SizedBox(
-                    width: 252,
-                    child: Column(
-                      children: [
-                        Container(
-                          width: double.infinity,
-                          color: const Color(0xFF3F7FC7),
-                          padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
-                          child: Text(
-                            l.salesWorkspaceTitle.toUpperCase(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.1,
+              ),
+              body: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Material(
+                    color: const Color(0xFFF8FBFC),
+                    child: SizedBox(
+                      width: 320,
+                      child: Column(
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF25AEDD),
+                              borderRadius: BorderRadius.only(
+                                bottomRight: Radius.circular(34),
+                              ),
                             ),
-                          ),
-                        ),
-                        ListTile(
-                          leading: const Icon(Icons.storefront_outlined),
-                          title: Text(l.salesWorkspaceTitle),
-                          subtitle: Text(l.salesWorkspaceSubtitle),
-                        ),
-                        const Divider(),
-                        Expanded(
-                          child: ListView(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            children: destinations.indexed.map((entry) {
-                              final index = entry.$1;
-                              final item = entry.$2;
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 4),
-                                child: ListTile(
-                                  selected: portalSection == index,
-                                  selectedTileColor: const Color(0xFFE8F1FB),
-                                  shape: const RoundedRectangleBorder(),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                  ),
-                                  leading: Icon(item.$1, size: 20),
-                                  title: Text(
-                                    item.$2,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: portalSection == index
-                                          ? FontWeight.w700
-                                          : FontWeight.w500,
+                            padding: const EdgeInsets.fromLTRB(20, 20, 24, 22),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.change_history_outlined,
+                                  color: Colors.white,
+                                  size: 36,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'SuiteCRM\nWORKSPACE',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      height: 1.1,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.2,
                                     ),
                                   ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(18, 16, 18, 8),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.dashboard_customize_outlined,
+                                  color: Color(0xFF1B8EB9),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Modules & activities',
+                                    style: TextStyle(
+                                      color: Colors.blueGrey.shade800,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Divider(),
+                          Expanded(
+                            child: GridView.extent(
+                              maxCrossAxisExtent: 142,
+                              childAspectRatio: 1.12,
+                              padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                              children: destinations.indexed.map((entry) {
+                                final index = entry.$1;
+                                final item = entry.$2;
+                                final selected = portalSection == index;
+                                return InkWell(
+                                  borderRadius: BorderRadius.circular(12),
                                   onTap: () {
                                     setState(() => portalSection = index);
                                     controller.animateTo(index);
                                   },
-                                ),
-                              );
-                            }).toList(),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 160),
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: selected
+                                          ? const Color(0xFFE1F4FA)
+                                          : Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: selected
+                                            ? const Color(0xFF25AEDD)
+                                            : const Color(0xFFD7E8EE),
+                                        width: selected ? 2 : 1,
+                                      ),
+                                    ),
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          item.$1,
+                                          size: 27,
+                                          color: selected
+                                              ? const Color(0xFF168DB9)
+                                              : const Color(0xFF607D8B),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          item.$2,
+                                          textAlign: TextAlign.center,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            height: 1.15,
+                                            fontWeight: selected
+                                                ? FontWeight.w800
+                                                : FontWeight.w600,
+                                            color: selected
+                                                ? const Color(0xFF167EA5)
+                                                : const Color(0xFF455A64),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
                           ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Text(
-                            l.offlineTerminalFooter,
-                            textAlign: TextAlign.center,
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
+                            child: Text(
+                              l.offlineTerminalFooter,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.blueGrey.shade500,
+                                fontSize: 11,
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const VerticalDivider(width: 1),
-                Expanded(
-                  child: TabBarView(
-                    children: sections.map((s) => s.$4).toList(),
+                  const VerticalDivider(width: 1),
+                  Expanded(
+                    child: TabBarView(
+                      children: sections.map((s) => s.$4).toList(),
+                    ),
                   ),
-                ),
-              ],
-            ),
-          );
-        },
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -6270,51 +6595,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
           ],
         ),
         const SizedBox(height: 8),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-            child: Row(
-              children: [
-                const Icon(Icons.palette_outlined),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Storefront theme',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      SizedBox(height: 3),
-                      Text('Choose the WooCommerce-style client site layout.'),
-                    ],
-                  ),
-                ),
-                SizedBox(
-                  width: 260,
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _storefrontThemeId(),
-                    decoration: const InputDecoration(
-                      labelText: 'Theme style',
-                      isDense: true,
-                    ),
-                    items: _storefrontThemeOptions
-                        .map(
-                          (theme) => DropdownMenuItem<String>(
-                            value: theme['id'],
-                            child: Text(theme['label']!),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) _setStorefrontTheme(value);
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+        _storefrontThemeGallery(),
         const SizedBox(height: 12),
         // WordPress-style "All | Published | Draft" status tabs above the
         // post list table.
@@ -6367,6 +6648,83 @@ class _LilyGoAppState extends State<LilyGoApp> {
           empty: l.contentEmpty,
         ),
       ],
+    );
+  }
+
+  Widget _storefrontThemeGallery() {
+    final selectedId = _portalSelectedThemeId();
+    final categories = [
+      'All',
+      ..._storefrontThemeOptions.map((theme) => theme['category']!).toSet(),
+    ];
+    final visibleThemes = themeCategoryFilter == 'All'
+        ? _storefrontThemeOptions
+        : _storefrontThemeOptions
+              .where((theme) => theme['category'] == themeCategoryFilter)
+              .toList();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.palette_outlined),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Storefront theme',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      SizedBox(height: 3),
+                      Text('Choose the WooCommerce-style client site layout.'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: categories
+                  .map(
+                    (category) => FilterChip(
+                      label: Text(category),
+                      selected: themeCategoryFilter == category,
+                      onSelected: (_) =>
+                          setState(() => themeCategoryFilter = category),
+                    ),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: visibleThemes
+                  .map(
+                    (theme) => _ThemeOptionCard(
+                      label: theme['label']!,
+                      description: theme['description']!,
+                      category: theme['category']!,
+                      swatch: Color(
+                        int.parse(theme['swatch']!.substring(1), radix: 16) +
+                            0xFF000000,
+                      ),
+                      selected: theme['id'] == selectedId,
+                      onTap: () => _setStorefrontTheme(theme['id']!),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -7147,6 +7505,93 @@ class _StatusChip extends StatelessWidget {
   );
 }
 
+// A selectable storefront-theme tile. Fixed width + Wrap on the caller side
+// is what gives the gallery its RWD behavior: it reflows from one column on
+// a phone-width portal to several columns on a desktop without any
+// breakpoint logic.
+class _ThemeOptionCard extends StatelessWidget {
+  const _ThemeOptionCard({
+    required this.label,
+    required this.description,
+    required this.category,
+    required this.swatch,
+    required this.selected,
+    required this.onTap,
+  });
+  final String label;
+  final String description;
+  final String category;
+  final Color swatch;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 220,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected
+                ? theme.colorScheme.primary
+                : const Color(0xFFE4E7EC),
+            width: selected ? 2 : 1,
+          ),
+          color: selected
+              ? theme.colorScheme.primary.withValues(alpha: 0.06)
+              : Colors.white,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: swatch,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                const Spacer(),
+                if (selected)
+                  Icon(
+                    Icons.check_circle,
+                    color: theme.colorScheme.primary,
+                    size: 20,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4),
+            Text(
+              description,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF667085)),
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Chip(
+                label: Text(category, style: const TextStyle(fontSize: 11)),
+                visualDensity: VisualDensity.compact,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: EdgeInsets.zero,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // Bounds portal content to an iPad-landscape reading width (1024pt, the
 // guide.pdf screenshots' own frame) instead of stretching edge-to-edge on
 // wide monitors, then centers it — the same "fits inside a tablet" framing
@@ -7387,6 +7832,8 @@ class _ProductDraft {
     this.productType,
     this.tosell,
     this.stockAlertThreshold,
+    this.photo,
+    this.photoMime,
   );
   final String ref, label;
   final double price, tax, stock;
@@ -7397,6 +7844,8 @@ class _ProductDraft {
   final int productType;
   final bool tosell;
   final double? stockAlertThreshold;
+  final String? photo;
+  final String? photoMime;
 }
 
 class _ProductDialog extends StatefulWidget {
@@ -7445,6 +7894,68 @@ class _ProductDialogState extends State<_ProductDialog> {
       : widget.row?['tax_included'] != false;
   late int productType = (widget.row?['fk_product_type'] as num?)?.toInt() ?? 0;
   late bool tosell = widget.row?['tosell'] != 0;
+  late String? photo = widget.row?['photo'] as String?;
+  late String? photoMime = widget.row?['photo_mime'] as String?;
+
+  Future<void> _pickPhoto() async {
+    final file = await FilePicker.pickFile(type: FileType.image);
+    if (file == null) return;
+    final bytes = await file.readAsBytes();
+    if (bytes.lengthInBytes > 3 * 1024 * 1024) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Image must be smaller than 3 MB')),
+        );
+      }
+      return;
+    }
+    final ext = file.name.contains('.')
+        ? file.name.split('.').last.toLowerCase()
+        : '';
+    final mime = switch (ext) {
+      'png' => 'image/png',
+      'gif' => 'image/gif',
+      'webp' => 'image/webp',
+      _ => 'image/jpeg',
+    };
+    setState(() {
+      photo = base64Encode(bytes);
+      photoMime = mime;
+    });
+  }
+
+  Widget _photoPreview() {
+    if (photo == null || photo!.isEmpty) {
+      return Container(
+        width: 72,
+        height: 72,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Icon(Icons.image_outlined),
+      );
+    }
+    final image = (photoMime != null && photoMime!.isNotEmpty)
+        ? Image.memory(
+            base64Decode(photo!),
+            width: 72,
+            height: 72,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) =>
+                const Icon(Icons.broken_image_outlined),
+          )
+        : Image.asset(
+            photo!,
+            width: 72,
+            height: 72,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) =>
+                const Icon(Icons.broken_image_outlined),
+          );
+    return ClipRRect(borderRadius: BorderRadius.circular(10), child: image);
+  }
+
   @override
   Widget build(BuildContext c) {
     final l = AppLocalizations.of(c);
@@ -7457,6 +7968,37 @@ class _ProductDialogState extends State<_ProductDialog> {
           children: [
             _field(l.fieldReference, ref),
             _field(l.fieldLabel, label),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  _photoPreview(),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: _pickPhoto,
+                          icon: const Icon(Icons.upload_outlined),
+                          label: const Text('Choose photo'),
+                        ),
+                        if (photo != null && photo!.isNotEmpty)
+                          TextButton.icon(
+                            onPressed: () => setState(() {
+                              photo = null;
+                              photoMime = null;
+                            }),
+                            icon: const Icon(Icons.delete_outline),
+                            label: const Text('Remove'),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: DropdownButtonFormField<int?>(
@@ -7539,6 +8081,8 @@ class _ProductDialogState extends State<_ProductDialog> {
               productType,
               tosell,
               double.tryParse(stockAlert.text),
+              photo,
+              photoMime,
             ),
           ),
           child: Text(l.saveButton),

@@ -396,10 +396,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cashPaymentLabel => 'Cash';
 
   @override
-  String get salesWorkspaceTitle => 'Sales workspace';
+  String get salesWorkspaceTitle => 'SuiteCRM workspace';
 
   @override
-  String get salesWorkspaceSubtitle => 'Menu';
+  String get salesWorkspaceSubtitle => 'Accounts, activities, and operations';
 
   @override
   String get offlineTerminalFooter => 'Offline terminal';
@@ -423,7 +423,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navSupport => 'Support';
 
   @override
-  String get createChannelButton => 'Create store link';
+  String get createChannelButton => 'Open store link';
 
   @override
   String get channelNameFieldLabel => 'Store link name';

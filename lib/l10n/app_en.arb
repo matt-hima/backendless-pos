@@ -146,8 +146,8 @@
   "paymentMethodLabel": "Payment method",
   "cashPaymentLabel": "Cash",
 
-  "salesWorkspaceTitle": "Sales workspace",
-  "salesWorkspaceSubtitle": "Menu",
+  "salesWorkspaceTitle": "SuiteCRM workspace",
+  "salesWorkspaceSubtitle": "Accounts, activities, and operations",
   "offlineTerminalFooter": "Offline terminal",
 
   "navOverview": "Overview",
@@ -157,7 +157,7 @@
   "navConnection": "Connection",
   "navSupport": "Support",
 
-  "createChannelButton": "Create store link",
+  "createChannelButton": "Open store link",
   "channelNameFieldLabel": "Store link name",
   "channelReadyTitle": "Store link {code} ready",
   "@channelReadyTitle": {

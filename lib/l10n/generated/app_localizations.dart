@@ -786,13 +786,13 @@ abstract class AppLocalizations {
   /// No description provided for @salesWorkspaceTitle.
   ///
   /// In en, this message translates to:
-  /// **'Sales workspace'**
+  /// **'SuiteCRM workspace'**
   String get salesWorkspaceTitle;
 
   /// No description provided for @salesWorkspaceSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Menu'**
+  /// **'Accounts, activities, and operations'**
   String get salesWorkspaceSubtitle;
 
   /// No description provided for @offlineTerminalFooter.
@@ -840,7 +840,7 @@ abstract class AppLocalizations {
   /// No description provided for @createChannelButton.
   ///
   /// In en, this message translates to:
-  /// **'Create store link'**
+  /// **'Open store link'**
   String get createChannelButton;
 
   /// No description provided for @channelNameFieldLabel.
