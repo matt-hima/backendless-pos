@@ -1131,9 +1131,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get navPosSettings => 'POS設定';
 
   @override
-  String get noCategoryOption => 'カテゴリーなし';
-
-  @override
   String get taxIncludedLabel => '価格に税込み';
 
   @override
@@ -1189,7 +1186,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cartTitle => '注文内容';
 
   @override
-  String get cartEmptyLabel => 'カートは空です';
+  String get cartEmptyLabel => 'まだ商品が選択されていません';
 
   @override
   String get totalLabel => '合計';
@@ -1281,7 +1278,7 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get countedCashLabel => '実現金';
+  String get countedCashLabel => '点検金額';
 
   @override
   String varianceLabel(String amount) {
@@ -1302,6 +1299,11 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get completeSaleButton => '会計する';
+
+  @override
+  String saleFailedError(String error) {
+    return '会計を完了できませんでした：$error';
+  }
 
   @override
   String get salesAnalysisSectionTitle => '売上分析';
@@ -1368,6 +1370,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get fieldStockAlert => '在庫アラートのしきい値';
+
+  @override
+  String get imageTooLargeError => '画像は3MB以下にしてください';
 
   @override
   String get productEnabledLabel => '販売する';

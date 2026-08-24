@@ -52,6 +52,46 @@ Locale _parseLocaleCode(String code) {
   return parts.length > 1 ? Locale(parts[0], parts[1]) : Locale(parts[0]);
 }
 
+class _InventoryMetric extends StatelessWidget {
+  const _InventoryMetric({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        children: [
+          Icon(icon, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: Theme.of(context).textTheme.bodySmall),
+                const SizedBox(height: 3),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 String orderStatusLabel(BuildContext context, int status) {
   final l = AppLocalizations.of(context);
   switch (status) {
@@ -143,6 +183,10 @@ class _LilyGoAppState extends State<LilyGoApp> {
   Timer? _demoOrderTimer;
   String status = '';
   List<Map<String, dynamic>> productRows = [];
+  List<Map<String, dynamic>> warehouseRows = [];
+  List<Map<String, dynamic>> warehouseStockRows = [];
+  List<Map<String, dynamic>> shelfStockRows = [];
+  List<Map<String, dynamic>> shelfLocationRows = [];
   List<Map<String, dynamic>> customerRows = [];
   List<Map<String, dynamic>> orderRows = [];
   List<Map<String, dynamic>> clientProducts = [];
@@ -392,7 +436,9 @@ class _LilyGoAppState extends State<LilyGoApp> {
   Future<void> _refresh() async {
     final data = await Future.wait([
       db.rows('''
-        SELECT p.rowid, p.ref, p.label, p.price, p.tva_tx, p.stock, p.tax_included, p.updated_at,
+        SELECT p.rowid, p.ref, p.label, p.price, p.tva_tx, p.stock,
+               COALESCE((SELECT SUM(ps.reel) FROM erp.llx_product_stock ps WHERE ps.fk_product = p.rowid), 0) AS warehouse_stock,
+               p.tax_included, p.updated_at,
                p.photo, p.photo_mime, p.description, p.barcode, p.fk_barcode_type,
                p.fk_product_type, p.tosell, p.tobuy, p.seuil_stock_alerte,
                c.rowid AS category_id, c.label AS category_label, c.color AS category_color
@@ -413,6 +459,10 @@ class _LilyGoAppState extends State<LilyGoApp> {
       db.registerSessions(),
       db.settingsMap(),
       db.posSales(),
+      db.warehouses(),
+      db.warehouseStock(),
+      db.shelfStock(),
+      db.shelfLocations(),
     ]);
     if (!mounted) return;
     setState(() {
@@ -425,6 +475,10 @@ class _LilyGoAppState extends State<LilyGoApp> {
       registerSessionHistory = data[6] as List<Map<String, dynamic>>;
       posSettings = data[7] as Map<String, String>;
       posSaleRows = data[8] as List<Map<String, dynamic>>;
+      warehouseRows = data[9] as List<Map<String, dynamic>>;
+      warehouseStockRows = data[10] as List<Map<String, dynamic>>;
+      shelfStockRows = data[11] as List<Map<String, dynamic>>;
+      shelfLocationRows = data[12] as List<Map<String, dynamic>>;
     });
   }
 
@@ -4685,6 +4739,12 @@ class _LilyGoAppState extends State<LilyGoApp> {
         'products.manage',
         _products(),
       ),
+      (
+        Icons.warehouse_outlined,
+        'Warehouse management',
+        'products.manage',
+        _warehouseManagement(),
+      ),
       (Icons.receipt_long_outlined, l.navOrders, 'orders.manage', _orders()),
       (
         Icons.cell_tower,
@@ -5508,7 +5568,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(navigatorKey.currentContext!).showSnackBar(
-        SnackBar(content: Text('Sale could not be completed: $error')),
+        SnackBar(content: Text(l.saleFailedError(error.toString()))),
       );
       return;
     }
@@ -5638,6 +5698,8 @@ class _LilyGoAppState extends State<LilyGoApp> {
       byPayment[code] = (byPayment[code] ?? 0) + (sale['total_ttc'] as num);
     }
     final cashTotal = byPayment['LIQ'] ?? 0;
+    final openingFloat = (session['opening'] as num?)?.toDouble() ?? 0;
+    final expectedCash = openingFloat + cashTotal;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -5670,7 +5732,8 @@ class _LilyGoAppState extends State<LilyGoApp> {
                 ),
                 const SizedBox(height: 20),
                 FilledButton.icon(
-                  onPressed: () => _closeRegisterDialog(sessionId, cashTotal),
+                  onPressed: () =>
+                      _closeRegisterDialog(sessionId, expectedCash),
                   icon: const Icon(Icons.lock_outline),
                   label: Text(l.closeRegisterButton),
                 ),
@@ -6110,6 +6173,305 @@ class _LilyGoAppState extends State<LilyGoApp> {
     );
   }
 
+  Future<void> _warehouseAction({required bool transfer}) async {
+    if (productRows.isEmpty ||
+        warehouseRows.isEmpty ||
+        shelfLocationRows.isEmpty)
+      return;
+    final productController = ValueNotifier<int>(
+      productRows.first['rowid'] as int,
+    );
+    final warehouseController = ValueNotifier<int>(
+      warehouseRows.first['rowid'] as int,
+    );
+    final shelfController = ValueNotifier<int>(
+      shelfLocationRows.first['id'] as int,
+    );
+    final quantity = TextEditingController(text: '1');
+    final price = TextEditingController(text: '0');
+    final result = await showDialog<bool>(
+      context: navigatorKey.currentContext!,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          transfer
+              ? 'Transfer warehouse stock to shelf'
+              : 'Receive warehouse stock',
+        ),
+        content: SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ValueListenableBuilder<int>(
+                valueListenable: productController,
+                builder: (_, value, __) => DropdownButtonFormField<int>(
+                  initialValue: value,
+                  decoration: const InputDecoration(
+                    labelText: 'Product',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: productRows
+                      .map(
+                        (p) => DropdownMenuItem<int>(
+                          value: p['rowid'] as int,
+                          child: Text('${p['ref']} · ${p['label']}'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) productController.value = v;
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              ValueListenableBuilder<int>(
+                valueListenable: warehouseController,
+                builder: (_, value, __) => DropdownButtonFormField<int>(
+                  initialValue: value,
+                  decoration: const InputDecoration(
+                    labelText: 'Warehouse',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: warehouseRows
+                      .map(
+                        (w) => DropdownMenuItem<int>(
+                          value: w['rowid'] as int,
+                          child: Text('${w['ref']} · ${w['label']}'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) warehouseController.value = v;
+                  },
+                ),
+              ),
+              if (transfer) ...[
+                const SizedBox(height: 12),
+                ValueListenableBuilder<int>(
+                  valueListenable: shelfController,
+                  builder: (_, value, __) => DropdownButtonFormField<int>(
+                    initialValue: value,
+                    decoration: const InputDecoration(
+                      labelText: 'Shelf',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: shelfLocationRows
+                        .map(
+                          (s) => DropdownMenuItem<int>(
+                            value: s['id'] as int,
+                            child: Text('${s['code']} · ${s['name']}'),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (v) {
+                      if (v != null) shelfController.value = v;
+                    },
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+              _dialogNumberField('Quantity', quantity),
+              if (!transfer) ...[
+                const SizedBox(height: 12),
+                _dialogNumberField('Unit cost', price),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(_l.cancelButton),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(transfer ? 'Transfer' : 'Receive'),
+          ),
+        ],
+      ),
+    );
+    if (result != true) return;
+    try {
+      final qty = double.tryParse(quantity.text) ?? 0;
+      if (transfer) {
+        await db.transferWarehouseToShelf(
+          productId: productController.value,
+          warehouseId: warehouseController.value,
+          shelfId: shelfController.value,
+          quantity: qty,
+        );
+      } else {
+        await db.receiveWarehouseStock(
+          productId: productController.value,
+          warehouseId: warehouseController.value,
+          quantity: qty,
+          price: double.tryParse(price.text) ?? 0,
+        );
+      }
+      await _refresh();
+      if (mounted)
+        setState(
+          () => status = transfer
+              ? 'Stock transferred to shelf'
+              : 'Warehouse stock received',
+        );
+    } catch (error) {
+      if (mounted) setState(() => status = 'Inventory action failed: $error');
+    }
+  }
+
+  Widget _dialogNumberField(String label, TextEditingController controller) =>
+      TextField(
+        controller: controller,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+        ),
+      );
+
+  Widget _warehouseManagement() {
+    final shelfTotal = shelfStockRows.fold<double>(
+      0,
+      (sum, row) => sum + (row['quantity'] as num).toDouble(),
+    );
+    final warehouseTotal = warehouseStockRows.fold<double>(
+      0,
+      (sum, row) => sum + (row['reel'] as num).toDouble(),
+    );
+    return _Page(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const _SectionTitle(
+              'Warehouse management',
+              'Dolibarr warehouse stock and OpenMES shelf stock',
+            ),
+            Wrap(
+              spacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => _warehouseAction(transfer: false),
+                  icon: const Icon(Icons.move_to_inbox_outlined),
+                  label: const Text('Receive into warehouse'),
+                ),
+                FilledButton.icon(
+                  onPressed: () => _warehouseAction(transfer: true),
+                  icon: const Icon(Icons.output_outlined),
+                  label: const Text('Transfer to shelf'),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _InventoryMetric(
+                label: 'Warehouse units',
+                value: _number(warehouseTotal),
+                icon: Icons.warehouse_outlined,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _InventoryMetric(
+                label: 'Shelf units',
+                value: _number(shelfTotal),
+              icon: Icons.view_agenda_outlined,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _InventoryMetric(
+                label: 'Shelf locations',
+                value: '${shelfLocationRows.length}',
+                icon: Icons.location_on_outlined,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Warehouse stock · Dolibarr',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                _DataTable(
+                  columns: [
+                    'Warehouse',
+                    'Reference',
+                    'Product',
+                    'Units',
+                    'PMP',
+                  ],
+                  rows: warehouseStockRows
+                      .map(
+                        (r) => [
+                          r['warehouse_label'],
+                          r['ref'],
+                          r['label'],
+                          _number(r['reel']),
+                          'NT\$${_number(r['pmp'])}',
+                        ],
+                      )
+                      .toList(),
+                  empty: 'No warehouse stock. Receive inventory to begin.',
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Shelf stock · OpenMES',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                _DataTable(
+                  columns: [
+                    'Shelf',
+                    'Reference',
+                    'Product',
+                    'Available units',
+                    'Reorder min',
+                  ],
+                  rows: shelfStockRows
+                      .map(
+                        (r) => [
+                          r['shelf_name'],
+                          r['ref'],
+                          r['label'],
+                          _number(r['quantity']),
+                          _number(r['min_quantity']),
+                        ],
+                      )
+                      .toList(),
+                  empty:
+                      'No shelf stock yet. Transfer inventory from a warehouse.',
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _products() {
     final l = _l;
     return _Page(
@@ -6165,7 +6527,8 @@ class _LilyGoAppState extends State<LilyGoApp> {
               l.colBarcode,
               l.colPriceHt,
               l.colVat,
-              l.colStock,
+              'Shelf stock',
+              'Warehouse stock',
               '',
               '',
             ],
@@ -6184,6 +6547,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
                     'NT\$${_number(r['price'])}',
                     '${_number(r['tva_tx'])}%',
                     _number(r['stock']),
+                    _number(r['warehouse_stock']),
                     'EDIT',
                     'LANG',
                   ],
@@ -7904,7 +8268,9 @@ class _ProductDialogState extends State<_ProductDialog> {
     if (bytes.lengthInBytes > 3 * 1024 * 1024) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Image must be smaller than 3 MB')),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).imageTooLargeError),
+          ),
         );
       }
       return;
@@ -8010,7 +8376,7 @@ class _ProductDialogState extends State<_ProductDialog> {
                 items: [
                   DropdownMenuItem(
                     value: null,
-                    child: Text(l.noCategoryOption),
+                    child: Text(l.uncategorizedLabel),
                   ),
                   ...widget.categories.map(
                     (cat) => DropdownMenuItem(
@@ -8041,7 +8407,7 @@ class _ProductDialogState extends State<_ProductDialog> {
             _field(l.fieldDescription, description),
             _field(l.fieldPriceHt, price, numeric: true),
             _field(l.fieldVat, tax, numeric: true),
-            _field(l.fieldStock, stock, numeric: true),
+            _field('Shelf stock', stock, numeric: true),
             _field(l.fieldStockAlert, stockAlert, numeric: true),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,

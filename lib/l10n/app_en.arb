@@ -492,7 +492,6 @@
   "navRegisterSettlement": "Till",
   "navSalesAnalysis": "Sales analysis",
   "navPosSettings": "POS settings",
-  "noCategoryOption": "No category",
   "taxIncludedLabel": "Tax included in price",
   "taxIncludedHint": "Turn off if this product's price excludes tax",
   "newCategoryTitle": "New category",
@@ -562,6 +561,10 @@
   "checkoutTitle": "Checkout",
   "tenderedAmountLabel": "Amount tendered",
   "completeSaleButton": "Complete sale",
+  "saleFailedError": "Sale could not be completed: {error}",
+  "@saleFailedError": {
+    "placeholders": { "error": {"type": "String"} }
+  },
   "salesAnalysisSectionTitle": "Sales analysis",
   "salesAnalysisSectionSubtitle": "Daily, category, and product sales breakdowns",
   "rangeTodayLabel": "Today",
@@ -585,6 +588,7 @@
   "productTypeService": "Service",
   "fieldBarcode": "Barcode",
   "fieldStockAlert": "Stock alert threshold",
+  "imageTooLargeError": "Image must be smaller than 3 MB",
   "productEnabledLabel": "Available for sale",
   "productEnabledHint": "Turn off to hide this product from the register without deleting it",
   "colBarcode": "Barcode",

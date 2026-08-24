@@ -12,6 +12,8 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import java.io.File
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
@@ -22,6 +24,7 @@ class MainActivity : FlutterActivity() {
     private val channelName = "lilygo/android_client"
     private var peerConnectionFactory: PeerConnectionFactory? = null
     private var pieceExchange: PieceExchangeEngine? = null
+    private val nativeExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
     companion object {
         init {
@@ -49,10 +52,12 @@ class MainActivity : FlutterActivity() {
                     return@setMethodCallHandler
                 }
                 if (call.method == "initializeDuckDb") {
-                    val initialized = nativeDuckDbInit(
-                        File(filesDir, "portal.duckdb").absolutePath,
-                    )
-                    result.success(initialized)
+                    nativeExecutor.execute {
+                        val initialized = nativeDuckDbInit(
+                            File(filesDir, "portal.duckdb").absolutePath,
+                        )
+                        runOnUiThread { result.success(initialized) }
+                    }
                     return@setMethodCallHandler
                 }
                 if (call.method != "openClient") {
@@ -77,6 +82,7 @@ class MainActivity : FlutterActivity() {
         peerConnectionFactory?.dispose()
         peerConnectionFactory = null
         pieceExchange = null
+        nativeExecutor.shutdownNow()
         super.onDestroy()
     }
 

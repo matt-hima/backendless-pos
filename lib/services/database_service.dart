@@ -44,6 +44,26 @@ class DatabaseService {
         photo VARCHAR, photo_mime VARCHAR,
         stock DOUBLE DEFAULT 0, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      -- Dolibarr warehouse stock: one row per product and warehouse.
+      CREATE TABLE IF NOT EXISTS erp.llx_entrepot (
+        rowid BIGINT PRIMARY KEY, entity INTEGER DEFAULT 1, ref VARCHAR NOT NULL,
+        label VARCHAR NOT NULL, description VARCHAR, statut SMALLINT DEFAULT 1,
+        address VARCHAR, town VARCHAR, zip VARCHAR, country VARCHAR,
+        date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        tms TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS erp.llx_product_stock (
+        rowid BIGINT PRIMARY KEY, fk_product BIGINT NOT NULL,
+        fk_entrepot BIGINT NOT NULL, reel DOUBLE DEFAULT 0,
+        pmp DOUBLE DEFAULT 0, tms TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (fk_product, fk_entrepot)
+      );
+      CREATE TABLE IF NOT EXISTS erp.llx_stock_mouvement (
+        rowid BIGINT PRIMARY KEY, tms TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        datem TIMESTAMP DEFAULT CURRENT_TIMESTAMP, fk_product BIGINT NOT NULL,
+        fk_entrepot BIGINT NOT NULL, value DOUBLE NOT NULL, price DOUBLE DEFAULT 0,
+        type_mouvement INTEGER NOT NULL, label VARCHAR, inventorycode VARCHAR
+      );
       CREATE TABLE IF NOT EXISTS erp.llx_commandedet (
         rowid BIGINT PRIMARY KEY, fk_commande BIGINT NOT NULL,
         fk_product BIGINT NOT NULL, qty DOUBLE NOT NULL,
@@ -151,6 +171,23 @@ class DatabaseService {
         state VARCHAR NOT NULL DEFAULT 'idle',
         location_type VARCHAR NOT NULL DEFAULT 'table', capacity INTEGER,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      -- OpenMES shelf stock is a location-aware operational quantity.
+      CREATE TABLE IF NOT EXISTS mes.shelf_locations (
+        id BIGINT PRIMARY KEY, code VARCHAR UNIQUE NOT NULL, name VARCHAR NOT NULL,
+        capacity DOUBLE, is_active BOOLEAN DEFAULT true,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS mes.shelf_stock (
+        id BIGINT PRIMARY KEY, product_id BIGINT NOT NULL, shelf_id BIGINT NOT NULL,
+        quantity DOUBLE DEFAULT 0, min_quantity DOUBLE DEFAULT 0,
+        max_quantity DOUBLE, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (product_id, shelf_id)
+      );
+      CREATE TABLE IF NOT EXISTS mes.shelf_movements (
+        id BIGINT PRIMARY KEY, product_id BIGINT NOT NULL, shelf_id BIGINT NOT NULL,
+        quantity DOUBLE NOT NULL, movement_type VARCHAR NOT NULL,
+        reason VARCHAR, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       CREATE TABLE IF NOT EXISTS mes.production_orders (
         id BIGINT PRIMARY KEY, ref VARCHAR NOT NULL, machine_id BIGINT NOT NULL,
@@ -326,6 +363,50 @@ class DatabaseService {
     await _seedDowntimeReasons();
     await _seedServiceStatuses();
     await _seedSuiteCrmRewards();
+    await _seedInventoryLocations();
+  }
+
+  Future<void> _seedInventoryLocations() async {
+    final warehouse = await rows(
+      "SELECT rowid FROM erp.llx_entrepot WHERE ref = 'MAIN' LIMIT 1",
+    );
+    final warehouseId = warehouse.isEmpty
+        ? _nextId()
+        : warehouse.first['rowid'] as int;
+    if (warehouse.isEmpty) {
+      await execute('''
+        INSERT INTO erp.llx_entrepot (rowid, ref, label) VALUES
+          ($warehouseId, 'MAIN', 'Main warehouse');
+      ''');
+    }
+    final shelf = await rows(
+      "SELECT id FROM mes.shelf_locations WHERE code = 'DEFAULT' LIMIT 1",
+    );
+    final shelfId = shelf.isEmpty ? _nextId() : shelf.first['id'] as int;
+    if (shelf.isEmpty) {
+      await execute('''
+        INSERT INTO mes.shelf_locations (id, code, name)
+        VALUES ($shelfId, 'DEFAULT', 'Default shelf');
+      ''');
+    }
+    // Existing installations had one undifferentiated stock number. Treat it
+    // as shelf stock once, so existing POS inventory remains sellable.
+    await execute('''
+      INSERT INTO mes.shelf_stock (id, product_id, shelf_id, quantity)
+      SELECT ${_nextId()} + row_number() OVER (), p.rowid, $shelfId, p.stock
+      FROM erp.llx_product p
+      WHERE p.stock > 0
+        AND NOT EXISTS (SELECT 1 FROM mes.shelf_stock s WHERE s.product_id = p.rowid);
+    ''');
+    await _syncProductShelfTotals();
+  }
+
+  Future<void> _syncProductShelfTotals() async {
+    await execute('''
+      UPDATE erp.llx_product p
+      SET stock = COALESCE((SELECT SUM(s.quantity) FROM mes.shelf_stock s WHERE s.product_id = p.rowid), 0),
+          updated_at = now();
+    ''');
   }
 
   Future<void> _seedSuiteCrmRewards() async {
@@ -589,6 +670,9 @@ class DatabaseService {
     double? stockAlertThreshold,
   }) async {
     final productId = id ?? DateTime.now().millisecondsSinceEpoch;
+    final existingShelfRows = await rows(
+      'SELECT id FROM mes.shelf_stock WHERE product_id = $productId LIMIT 1',
+    );
     await execute('''
       INSERT INTO erp.llx_product
         (rowid, ref, label, description, barcode, price, tva_tx, photo, photo_mime,
@@ -613,6 +697,176 @@ class DatabaseService {
         seuil_stock_alerte = EXCLUDED.seuil_stock_alerte, updated_at = now();
     ''');
     await setProductCategory(productId, categoryId);
+    // Once operational shelf rows exist, stock changes go through shelf
+    // movements so editing a product cannot duplicate stock across shelves.
+    if (existingShelfRows.isEmpty) {
+      await setShelfStock(
+        productId: productId,
+        quantity: stock,
+        reason: 'Initial shelf stock',
+      );
+    } else {
+      await _syncProductShelfTotals();
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> warehouses() => rows('''
+    SELECT w.rowid, w.ref, w.label, w.statut,
+           COALESCE(SUM(ps.reel), 0) AS stock_lines,
+           COUNT(DISTINCT ps.fk_product) AS product_count
+    FROM erp.llx_entrepot w
+    LEFT JOIN erp.llx_product_stock ps ON ps.fk_entrepot = w.rowid
+    GROUP BY w.rowid, w.ref, w.label, w.statut
+    ORDER BY w.label
+  ''');
+
+  Future<List<Map<String, dynamic>>> warehouseStock() => rows('''
+    SELECT ps.rowid, ps.fk_product, ps.fk_entrepot, ps.reel, ps.pmp,
+           p.ref, p.label, w.ref AS warehouse_ref, w.label AS warehouse_label
+    FROM erp.llx_product_stock ps
+    JOIN erp.llx_product p ON p.rowid = ps.fk_product
+    JOIN erp.llx_entrepot w ON w.rowid = ps.fk_entrepot
+    ORDER BY w.label, p.label
+  ''');
+
+  Future<List<Map<String, dynamic>>> shelfStock() => rows('''
+    SELECT ss.id, ss.product_id, ss.shelf_id, ss.quantity, ss.min_quantity,
+           ss.max_quantity, p.ref, p.label, sl.code AS shelf_code, sl.name AS shelf_name
+    FROM mes.shelf_stock ss
+    JOIN erp.llx_product p ON p.rowid = ss.product_id
+    JOIN mes.shelf_locations sl ON sl.id = ss.shelf_id
+    ORDER BY sl.name, p.label
+  ''');
+
+  Future<List<Map<String, dynamic>>> shelfLocations() => rows('''
+    SELECT id, code, name, capacity, is_active FROM mes.shelf_locations
+    WHERE is_active = true ORDER BY name
+  ''');
+
+  Future<void> receiveWarehouseStock({
+    required int productId,
+    required int warehouseId,
+    required double quantity,
+    double price = 0,
+    String? label,
+  }) async {
+    if (quantity <= 0)
+      throw ArgumentError('Warehouse receipt must be positive');
+    final stockRows = await rows('''
+      SELECT rowid, reel FROM erp.llx_product_stock
+      WHERE fk_product = $productId AND fk_entrepot = $warehouseId LIMIT 1
+    ''');
+    final stockId = stockRows.isEmpty
+        ? _nextId()
+        : stockRows.first['rowid'] as int;
+    final current = stockRows.isEmpty
+        ? 0.0
+        : (stockRows.first['reel'] as num).toDouble();
+    await execute('''
+      INSERT INTO erp.llx_product_stock (rowid, fk_product, fk_entrepot, reel, pmp)
+      VALUES ($stockId, $productId, $warehouseId, ${current + quantity}, $price)
+      ON CONFLICT (rowid) DO UPDATE SET reel = EXCLUDED.reel, pmp = EXCLUDED.pmp, tms = now();
+      INSERT INTO erp.llx_stock_mouvement
+        (rowid, fk_product, fk_entrepot, value, price, type_mouvement, label)
+      VALUES (${_nextId()}, $productId, $warehouseId, $quantity, $price, 3,
+        ${_q(label ?? 'Warehouse receipt')});
+    ''');
+  }
+
+  Future<void> transferWarehouseToShelf({
+    required int productId,
+    required int warehouseId,
+    required int shelfId,
+    required double quantity,
+  }) async {
+    if (quantity <= 0) throw ArgumentError('Shelf transfer must be positive');
+    final warehouseRows = await rows('''
+      SELECT rowid, reel FROM erp.llx_product_stock
+      WHERE fk_product = $productId AND fk_entrepot = $warehouseId LIMIT 1
+    ''');
+    if (warehouseRows.isEmpty ||
+        (warehouseRows.first['reel'] as num) < quantity) {
+      throw Exception('Insufficient warehouse stock');
+    }
+    final shelfRows = await rows('''
+      SELECT id, quantity FROM mes.shelf_stock
+      WHERE product_id = $productId AND shelf_id = $shelfId LIMIT 1
+    ''');
+    final shelfStockId = shelfRows.isEmpty
+        ? _nextId()
+        : shelfRows.first['id'] as int;
+    final shelfCurrent = shelfRows.isEmpty
+        ? 0.0
+        : (shelfRows.first['quantity'] as num).toDouble();
+    final warehouseStockId = warehouseRows.first['rowid'] as int;
+    final warehouseCurrent = (warehouseRows.first['reel'] as num).toDouble();
+    await execute('''
+      UPDATE erp.llx_product_stock SET reel = ${warehouseCurrent - quantity}, tms = now()
+      WHERE rowid = $warehouseStockId;
+      INSERT INTO mes.shelf_stock (id, product_id, shelf_id, quantity)
+      VALUES ($shelfStockId, $productId, $shelfId, ${shelfCurrent + quantity})
+      ON CONFLICT (id) DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = now();
+      INSERT INTO erp.llx_stock_mouvement
+        (rowid, fk_product, fk_entrepot, value, type_mouvement, label)
+      VALUES (${_nextId()}, $productId, $warehouseId, ${-quantity}, 5, 'Transfer to shelf');
+      INSERT INTO mes.shelf_movements (id, product_id, shelf_id, quantity, movement_type, reason)
+      VALUES (${_nextId()}, $productId, $shelfId, $quantity, 'transfer_in', 'Warehouse transfer');
+    ''');
+    await _syncProductShelfTotals();
+  }
+
+  Future<void> setShelfStock({
+    required int productId,
+    required double quantity,
+    String reason = 'Shelf adjustment',
+  }) async {
+    if (quantity < 0) throw ArgumentError('Shelf stock cannot be negative');
+    final shelf = await rows(
+      "SELECT id FROM mes.shelf_locations WHERE code = 'DEFAULT' LIMIT 1",
+    );
+    if (shelf.isEmpty) return;
+    final shelfId = shelf.first['id'] as int;
+    final existing = await rows('''
+      SELECT id, quantity FROM mes.shelf_stock WHERE product_id = $productId AND shelf_id = $shelfId LIMIT 1
+    ''');
+    final id = existing.isEmpty ? _nextId() : existing.first['id'] as int;
+    final old = existing.isEmpty
+        ? 0.0
+        : (existing.first['quantity'] as num).toDouble();
+    await execute('''
+      INSERT INTO mes.shelf_stock (id, product_id, shelf_id, quantity)
+      VALUES ($id, $productId, $shelfId, $quantity)
+      ON CONFLICT (id) DO UPDATE SET quantity = EXCLUDED.quantity, updated_at = now();
+      INSERT INTO mes.shelf_movements (id, product_id, shelf_id, quantity, movement_type, reason)
+      VALUES (${_nextId()}, $productId, $shelfId, ${quantity - old}, 'adjustment', ${_q(reason)});
+    ''');
+    await _syncProductShelfTotals();
+  }
+
+  Future<void> consumeShelfStock({
+    required int productId,
+    required double quantity,
+  }) async {
+    if (quantity <= 0) return;
+    var remaining = quantity;
+    final shelves = await rows('''
+      SELECT id, shelf_id, quantity FROM mes.shelf_stock
+      WHERE product_id = $productId AND quantity > 0 ORDER BY shelf_id
+    ''');
+    for (final shelf in shelves) {
+      if (remaining <= 0) break;
+      final available = (shelf['quantity'] as num).toDouble();
+      final used = available < remaining ? available : remaining;
+      await execute('''
+        UPDATE mes.shelf_stock SET quantity = quantity - $used, updated_at = now() WHERE id = ${shelf['id']};
+        INSERT INTO mes.shelf_movements (id, product_id, shelf_id, quantity, movement_type, reason)
+        VALUES (${_nextId()}, $productId, ${shelf['shelf_id']}, ${-used}, 'sale', 'POS sale');
+      ''');
+      remaining -= used;
+    }
+    if (remaining > 0.000001)
+      throw Exception('Shelf stock changed during checkout');
+    await _syncProductShelfTotals();
   }
 
   // --- Categories (Dolibarr llx_categorie / llx_categorie_product) ---
@@ -779,9 +1033,13 @@ class DatabaseService {
     required int productId,
     required double qty,
   }) async {
-    final productRows = await rows(
-      'SELECT stock, tosell FROM erp.llx_product WHERE rowid = $productId',
-    );
+    final productRows = await rows('''
+      SELECT p.tosell, COALESCE(SUM(s.quantity), 0) AS shelf_stock
+      FROM erp.llx_product p
+      LEFT JOIN mes.shelf_stock s ON s.product_id = p.rowid
+      WHERE p.rowid = $productId
+      GROUP BY p.rowid, p.tosell
+    ''');
     if (productRows.isEmpty) {
       return {'available': false, 'reason': 'PRODUCT_NOT_FOUND'};
     }
@@ -789,7 +1047,7 @@ class DatabaseService {
     if (product['tosell'] == 0) {
       return {'available': false, 'reason': 'PRODUCT_DISABLED'};
     }
-    final stock = (product['stock'] as num).toDouble();
+    final stock = (product['shelf_stock'] as num).toDouble();
     if (stock < qty) {
       return {'available': false, 'reason': 'OUT_OF_STOCK'};
     }
@@ -839,9 +1097,10 @@ class DatabaseService {
       await execute('''
         INSERT INTO erp.llx_facturedet (rowid, fk_facture, fk_product, qty, subprice, tva_tx, total_ht, total_ttc, description)
         VALUES ($lineId, $factureId, $productId, $qty, ${line['price']}, ${line['tva_tx']}, ${line['total_ht']}, ${line['total_ttc']}, ${_q(line['label'].toString())});
-        UPDATE erp.llx_product SET stock = stock - $qty, updated_at = now() WHERE rowid = $productId;
       ''');
       final productType = (line['fk_product_type'] as num?)?.toInt() ?? 0;
+      if (productType == 0)
+        await consumeShelfStock(productId: productId, quantity: qty);
       if (productType == 1) {
         await createServiceEvent(
           subject: line['label'].toString(),
@@ -925,8 +1184,14 @@ class DatabaseService {
         VALUES ($lineId, $refundId, ${productId ?? 'NULL'}, ${-qty}, ${line['subprice']}, ${line['tva_tx']}, ${-(line['total_ht'] as num)}, ${-(line['total_ttc'] as num)}, ${_q((line['description'] ?? '').toString())});
       ''');
       if (productId != null) {
-        await execute(
-          'UPDATE erp.llx_product SET stock = stock + $qty, updated_at = now() WHERE rowid = $productId;',
+        final stockRows = await rows(
+          'SELECT COALESCE(SUM(quantity), 0) AS quantity FROM mes.shelf_stock WHERE product_id = $productId',
+        );
+        final shelfTotal = (stockRows.first['quantity'] as num).toDouble();
+        await setShelfStock(
+          productId: productId,
+          quantity: shelfTotal + qty,
+          reason: 'POS refund',
         );
       }
     }
@@ -1963,6 +2228,9 @@ class DatabaseService {
     'erp.llx_socpeople',
     'erp.llx_commande',
     'erp.llx_product',
+    'erp.llx_entrepot',
+    'erp.llx_product_stock',
+    'erp.llx_stock_mouvement',
     'erp.llx_commandedet',
     'erp.llx_product_lang',
     'erp.llx_categorie',
@@ -1994,6 +2262,9 @@ class DatabaseService {
     'suitecrm.rewards',
     'suitecrm.reward_claims',
     'mes.machines',
+    'mes.shelf_locations',
+    'mes.shelf_stock',
+    'mes.shelf_movements',
     'mes.production_orders',
     'mes.workers',
     'mes.shifts',

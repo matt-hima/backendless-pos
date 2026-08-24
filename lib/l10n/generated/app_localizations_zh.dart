@@ -1120,9 +1120,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get navPosSettings => 'POS settings';
 
   @override
-  String get noCategoryOption => 'No category';
-
-  @override
   String get taxIncludedLabel => 'Tax included in price';
 
   @override
@@ -1299,6 +1296,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get completeSaleButton => 'Complete sale';
 
   @override
+  String saleFailedError(String error) {
+    return 'Sale could not be completed: $error';
+  }
+
+  @override
   String get salesAnalysisSectionTitle => 'Sales analysis';
 
   @override
@@ -1365,6 +1367,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get fieldStockAlert => 'Stock alert threshold';
+
+  @override
+  String get imageTooLargeError => 'Image must be smaller than 3 MB';
 
   @override
   String get productEnabledLabel => 'Available for sale';

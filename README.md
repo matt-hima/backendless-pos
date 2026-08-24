@@ -260,35 +260,22 @@ The disclosed architecture provides several operational advantages:
 - The Android native build is arm64-focused and requires the DuckDB source under `native/duckdb`.
 - The `op` service-event model is available in the data layer but does not currently have a dedicated portal navigation panel.
 
-## 10. Claims
+## 10. Technical Feature Summary
 
-The following claims describe the implemented technical concept in concise form. They are provided as project documentation and are not a substitute for a jurisdiction-specific patent claim review.
+The project’s main technical features are:
 
-1. **An offline-first commerce system**, comprising: a customer client having a browser-local object store; a merchant client having a local relational database; a channel-specific peer communication layer connecting the customer client and the merchant client; and a merchant operation layer configured to ingest an order from the peer communication layer and perform order, inventory, payment, or fulfillment processing in the local relational database.
+- **Offline-first local processing:** the customer and merchant clients keep their working data locally, allowing catalog browsing, ordering, POS, inventory, reporting, and administration to continue without a continuously available ERP server.
+- **Shared Flutter application:** `/` provides the customer storefront, `/portal` provides the merchant workspace, and `/second-display` provides a standalone channel QR display.
+- **Direct store channels:** each store receives a channel code and shareable URL. PeerJS brokers discovery while WebRTC carries customer-to-merchant application messages.
+- **Two local data layers:** IndexedDB stores customer-side catalog, orders, chat, CMS items, bookings, and sessions; DuckDB-Wasm or native DuckDB stores the merchant’s relational ERP data.
+- **Full local ERP model:** the database covers customers, products, categories, orders, invoices, payments, warehouses, shelf stock, POS cash fences, bookings, loyalty, content, roles, permissions, machines, workers, shifts, and downtime.
+- **Wallet-linked identity:** users can connect an injected EIP-1193 wallet, create or restore a browser wallet, or unlock a local wallet with a passphrase or supported WebAuthn passkey.
+- **Encrypted customer orders:** order payloads are protected with AES-GCM using a wallet-derived key, while only the fields needed for local filtering remain available in cleartext.
+- **Optional storage hand-off:** the portal exports a selected order view as Parquet and can upload it through an authenticated HTTP interface to a LAN relay, LilyGO-style device, or another compatible storage target.
+- **Device and platform integrations:** QR provisioning, browser or thermal printing, notifications, keep-awake behavior, JSON backup/restore, Google Drive and Sheets integration, Android-native DuckDB, WebRTC, piece exchange, and secondary-display support.
+- **Permission-aware operations:** wallet-linked roles control which portal sections and mutations are available to each operator.
 
-2. **The system of claim 1**, wherein the customer client and merchant client are routes of a shared Flutter application, the customer route being `/` and the merchant route being `/portal`.
-
-3. **The system of claim 1**, wherein the channel-specific peer communication layer derives a merchant peer identifier from a store channel code and uses PeerJS to broker a WebRTC data connection.
-
-4. **The system of claim 1**, wherein the browser-local object store comprises IndexedDB stores for a product catalog, encrypted order envelopes, wallet-linked customer records, channel records, chat messages, content items, bookings, and member sessions.
-
-5. **The system of claim 1**, wherein the local relational database comprises tables for customers, products, categories, orders, invoices, payments, warehouses, stock, point-of-sale cash fences, bookings, loyalty, content, roles, permissions, machines, workers, shifts, and downtime.
-
-6. **The system of claim 1**, further comprising a wallet layer configured to use an injected EIP-1193 wallet or a browser-generated local wallet to identify a user and derive a key for encrypting customer order contents.
-
-7. **The system of claim 6**, wherein the local wallet is persisted as an encrypted JSON keystore and is unlockable using a passphrase or a WebAuthn passkey-derived secret.
-
-8. **The system of claim 1**, further comprising an export layer configured to materialize a selected relational view as a Parquet file and to optionally transmit the Parquet file to a storage target through an HTTP upload interface.
-
-9. **The system of claim 8**, wherein the storage target exposes health checking, device-key attestation, and authenticated binary upload and performs storage without executing the merchant relational business logic.
-
-10. **The system of claim 1**, further comprising a QR provisioning or secondary-display layer configured to display a channel URL for joining the customer client to the merchant client.
-
-11. **The system of claim 1**, further comprising an access-control layer configured to associate wallet identities with roles and permissions and to filter merchant portal sections and operations based on the associated permissions.
-
-12. **A computer-implemented method**, comprising: initializing a local customer catalog; receiving a channel-specific customer order; encrypting at least order contents using a wallet-derived key; transmitting the order to a merchant peer; upserting the order into a local relational database; changing a fulfillment status; and optionally exporting a selected order view to a storage target.
-
-13. **The method of claim 12**, further comprising operating a register session, recording a payment, updating inventory, generating a sales aggregate, or issuing a refund using the local relational database while the storage target is unavailable.
+Together, these features provide a single local-first workflow from customer discovery and ordering through merchant fulfillment, payment, inventory, loyalty, booking, reporting, and optional backup.
 
 ## 11. License
 

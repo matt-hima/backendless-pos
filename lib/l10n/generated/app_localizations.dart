@@ -2115,12 +2115,6 @@ abstract class AppLocalizations {
   /// **'POS settings'**
   String get navPosSettings;
 
-  /// No description provided for @noCategoryOption.
-  ///
-  /// In en, this message translates to:
-  /// **'No category'**
-  String get noCategoryOption;
-
   /// No description provided for @taxIncludedLabel.
   ///
   /// In en, this message translates to:
@@ -2427,6 +2421,12 @@ abstract class AppLocalizations {
   /// **'Complete sale'**
   String get completeSaleButton;
 
+  /// No description provided for @saleFailedError.
+  ///
+  /// In en, this message translates to:
+  /// **'Sale could not be completed: {error}'**
+  String saleFailedError(String error);
+
   /// No description provided for @salesAnalysisSectionTitle.
   ///
   /// In en, this message translates to:
@@ -2558,6 +2558,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stock alert threshold'**
   String get fieldStockAlert;
+
+  /// No description provided for @imageTooLargeError.
+  ///
+  /// In en, this message translates to:
+  /// **'Image must be smaller than 3 MB'**
+  String get imageTooLargeError;
 
   /// No description provided for @productEnabledLabel.
   ///
