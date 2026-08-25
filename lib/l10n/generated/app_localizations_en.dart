@@ -73,7 +73,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get accountEntryBody =>
-      'Enter your mobile number to send orders. Birthday is optional for access from another computer. Recovery words are optional for stronger security.';
+      'Enter your mobile number to send orders. Email is optional for transaction details and status updates. This setup does not create a custom password, and password reset is not supported. Recovery words and a passkey provide stronger protection.';
 
   @override
   String get accountChoiceTitle => 'Advanced options';
@@ -147,14 +147,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backupPhraseBody =>
-      'Write these 12 words down and keep them offline. Anyone with them can access this account.';
+      'Write these 12 words down and keep them offline. Anyone with them can access this account. If someone knows only your phone number and birthday, they should not be able to access your transactions when stronger security is enabled.';
 
   @override
   String get backupPhraseConfirmCheckbox => 'I wrote down my backup phrase';
 
   @override
   String get quickSetupWarning =>
-      'Mobile number is required. Birthday is optional for another computer, and recovery words are optional for higher security.';
+      'Mobile number is required. Email is optional for order details and status updates. No custom password is created and password reset is unavailable. Use recovery words and a passkey so phone number plus birthday alone cannot access your transactions.';
 
   @override
   String get quickSetupMobileLabel => 'Mobile number';
@@ -195,7 +195,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get preferencesSecurityNote =>
-      'Higher security: keep your backup phrase offline and use it to restore this account if this device\'s storage is lost.';
+      'Higher security: enable a passkey and keep your backup phrase offline. No custom password is created and password reset is unavailable; phone number plus birthday alone should not grant transaction access.';
 
   @override
   String get accountGateHeadline => 'Sign in to open the store manager';

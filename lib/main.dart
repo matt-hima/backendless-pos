@@ -5,6 +5,7 @@ import 'dart:html' as html;
 import 'dart:js_util' as js_util;
 import 'dart:ui_web' as ui_web;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'l10n/generated/app_localizations.dart';
@@ -204,6 +205,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
   bool localMemberAvailable = false;
   int portalSection = 0;
   String walletMobile = '';
+  String walletEmail = '';
   String walletBirthday = '';
   bool rememberWalletInfo = false;
   Locale currentLocale = const Locale('en');
@@ -256,6 +258,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
   List<Map<String, dynamic>> salesByCategoryRows = [];
   List<Map<String, dynamic>> salesByProductRows = [];
   bool showDemoClientFrame = false;
+  bool clientCatalogValidated = false;
   bool demoSimulationEnabled = false;
   bool _demoFrameRegistered = false;
   late final String _demoFrameViewType =
@@ -310,7 +313,12 @@ class _LilyGoAppState extends State<LilyGoApp> {
         clientReady = true;
       });
     if (Uri.base.queryParameters['demo'] == '1') {
-      if (mounted) setState(() => clientProducts = _demoClientProducts());
+      if (mounted) {
+        setState(() {
+          clientProducts = _demoClientProducts();
+          clientCatalogValidated = true;
+        });
+      }
     }
     try {
       final hasLocalWallet = await localWallet.hasWallet();
@@ -329,6 +337,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
         ),
       ]);
       await indexedDb.expireMemberData();
+      await _restorePortalSession();
       final siteContent = await indexedDb.cmsItems('site_content');
       final savedProducts = await indexedDb.products();
       if (mounted) setState(() => clientSiteContent = siteContent);
@@ -337,6 +346,9 @@ class _LilyGoAppState extends State<LilyGoApp> {
           setState(() {
             clientProducts = savedProducts;
             clientReady = true;
+            // IndexedDB is only a cache. The portal must validate it before
+            // the storefront can submit an order.
+            clientCatalogValidated = false;
           });
         return;
       }
@@ -488,6 +500,21 @@ class _LilyGoAppState extends State<LilyGoApp> {
         await api.deviceAttest(payload.order['ref'].toString());
       }
       await db.upsertOrder(payload);
+      await db.queueMemberOrderEmail(
+        wallet:
+            payload.order['wallet']?.toString() ??
+            payload.contact['address']?.toString() ??
+            '',
+        email:
+            payload.contact['email']?.toString() ??
+            payload.thirdparty['email']?.toString() ??
+            '',
+        channel: payload.order['channel']?.toString() ?? activeChannel,
+        eventType: 'order.created',
+        subject: 'Order ${payload.order['ref']} received',
+        body:
+            'Order ${payload.order['ref']} was received. Total: ${payload.order['total_ttc']}.',
+      );
       final bytes = await db.exportParquet();
       if (walletAddress != 'demo-mode') await api.syncParquet(bytes);
       await _refresh();
@@ -522,6 +549,10 @@ class _LilyGoAppState extends State<LilyGoApp> {
       return;
     }
     await db.updateOrderStatus(orderId, nextStatus);
+    await db.queueOrderStatusEmail(
+      orderId,
+      orderStatusLabel(navigatorKey.currentContext!, nextStatus),
+    );
     await _refresh();
     final statusLabel = orderStatusLabel(
       navigatorKey.currentContext!,
@@ -837,6 +868,8 @@ class _LilyGoAppState extends State<LilyGoApp> {
       // the injected-wallet/admin login path, while the client only asks for
       // mobile on the first order and uses FIDO automatically afterward.
       if (!_isPortalRoute()) {
+        await _restorePortalSession();
+        if (walletAddress != null) return;
         if (passkey.hasPasskey()) {
           await _signInWithPasskey();
           if (walletAddress != null) return;
@@ -871,10 +904,64 @@ class _LilyGoAppState extends State<LilyGoApp> {
     }
   }
 
+  /// The portal owns authentication. The storefront only restores the
+  /// portal's shared session and uses FIDO to unlock the wallet on this
+  /// device; it never creates a second customer identity silently.
+  Future<void> _restorePortalSession() async {
+    if (_isPortalRoute() || walletAddress != null) return;
+    try {
+      final session = await indexedDb.memberSession();
+      final expectedWallet = session?['wallet']?.toString();
+      if (expectedWallet == null || expectedWallet.isEmpty) return;
+      if (!passkey.hasPasskey()) {
+        if (mounted) setState(() => localMemberAvailable = true);
+        return;
+      }
+      final passphrase = await passkey.unlock().timeout(
+        const Duration(seconds: 30),
+      );
+      final address = await localWallet.unlock(passphrase);
+      if (address == null ||
+          address.toLowerCase() != expectedWallet.toLowerCase()) {
+        return;
+      }
+      await _finishWalletLogin(address, local: true);
+    } catch (_) {
+      // FIDO cancellation or an unavailable device leaves the normal login
+      // button available without invalidating the portal's session.
+    }
+  }
+
+  Future<void> _saveMemberEmail(String address, String email) async {
+    if (email.isEmpty) return;
+    final updated = _walletThirdParty(address, email: email);
+    final existing = await indexedDb.walletThirdParty(address.toLowerCase());
+    final profileEnvelope = existing?['encrypted_profile']?.toString();
+    Map<String, dynamic> profile = {'email': email};
+    if (profileEnvelope != null && profileEnvelope.isNotEmpty) {
+      try {
+        profile = await walletCrypto.decrypt(profileEnvelope);
+        profile['email'] = email;
+      } catch (_) {}
+    }
+    updated['encrypted_profile'] = await walletCrypto.encrypt(profile);
+    await indexedDb.saveWalletThirdParty(updated);
+    if (_isPortalRoute()) {
+      await db.upsertWalletContact(
+        wallet: address,
+        phoneMobile: walletMobile,
+        birthday: walletBirthday,
+        email: email,
+      );
+    }
+    if (mounted) setState(() => walletEmail = email);
+  }
+
   Future<void> _accountEntry() async {
     final l = _l;
     final isPortal = _isPortalRoute();
     final mobileController = TextEditingController();
+    final emailController = TextEditingController();
     final birthdayController = TextEditingController();
     final storeNameController = TextEditingController();
     var advanced = false;
@@ -898,6 +985,15 @@ class _LilyGoAppState extends State<LilyGoApp> {
                   decoration: InputDecoration(
                     labelText: l.quickSetupMobileLabel,
                     border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Email (optional)',
+                    border: OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -958,9 +1054,11 @@ class _LilyGoAppState extends State<LilyGoApp> {
       ),
     );
     final mobile = mobileController.text.trim();
+    final email = emailController.text.trim();
     final birthday = birthdayController.text.trim();
     final storeName = storeNameController.text.trim();
     mobileController.dispose();
+    emailController.dispose();
     birthdayController.dispose();
     storeNameController.dispose();
     if (proceed != true) return;
@@ -972,12 +1070,14 @@ class _LilyGoAppState extends State<LilyGoApp> {
       return;
     }
     if (mobile.isEmpty) return;
+    if (email.isNotEmpty && !email.contains('@')) return;
     final passphrase = 'mobile:$mobile';
     if (await localWallet.hasWallet()) {
       try {
         final address = await localWallet.unlock(passphrase);
         if (address != null) {
           await _finishWalletLogin(address, local: true);
+          await _saveMemberEmail(address, email);
           await _ensurePortalAccess(address, storeName);
           return;
         }
@@ -995,9 +1095,10 @@ class _LilyGoAppState extends State<LilyGoApp> {
       await _showRecoveryPhrase(mnemonic);
     }
     await _offerPasskeySetup(passphrase);
-    final updated = _walletThirdParty(address);
+    final updated = _walletThirdParty(address, email: email);
     updated['encrypted_profile'] = await walletCrypto.encrypt({
       'phone_mobile': mobile,
+      'email': email,
       'birthday': birthday,
       'locale': _localeCode(currentLocale),
     });
@@ -1005,6 +1106,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
     if (mounted)
       setState(() {
         walletMobile = mobile;
+        walletEmail = email;
         walletBirthday = birthday;
         rememberWalletInfo = true;
       });
@@ -1108,6 +1210,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
               profile['phone_mobile']?.toString() ??
               profile['phone']?.toString() ??
               '';
+          walletEmail = profile['email']?.toString() ?? '';
           walletBirthday = profile['birthday']?.toString() ?? '';
           rememberWalletInfo = true;
           if (localeCode != null && localeCode.isNotEmpty)
@@ -1118,6 +1221,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
           wallet: address,
           phoneMobile: walletMobile,
           birthday: walletBirthday,
+          email: walletEmail,
         );
       }
     } catch (_) {
@@ -1489,7 +1593,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
     return result;
   }
 
-  Map<String, dynamic> _walletThirdParty(String address) {
+  Map<String, dynamic> _walletThirdParty(String address, {String? email}) {
     final normalized = address.toLowerCase();
     final id = int.parse(normalized.substring(2, 10), radix: 16);
     return {
@@ -1498,7 +1602,9 @@ class _LilyGoAppState extends State<LilyGoApp> {
       'nom': 'Account ${_shortWallet(address)}',
       'code_client': 'ACCT-${normalized.substring(2, 8).toUpperCase()}',
       'client': 1,
-      'email': 'account@local.invalid',
+      'email': email?.trim().isNotEmpty == true
+          ? email!.trim()
+          : 'account@local.invalid',
       'updated_at': DateTime.now().toIso8601String(),
     };
   }
@@ -1513,6 +1619,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
       );
       var total = 0.0;
       for (final record in records) {
+        if (record['portal_status']?.toString() != 'approved') continue;
         final payload = await walletCrypto.decrypt(
           record['encrypted_payload'].toString(),
         );
@@ -1638,6 +1745,15 @@ class _LilyGoAppState extends State<LilyGoApp> {
   }
 
   Future<void> _submitClientOrder({bool demo = false}) async {
+    if (!demo && !clientCatalogValidated) {
+      if (mounted) {
+        setState(
+          () => status =
+              'Store catalog is awaiting portal validation; please reconnect.',
+        );
+      }
+      return;
+    }
     final lines = <Map<String, dynamic>>[];
     var total = 0.0;
     for (final product in clientProducts) {
@@ -1663,7 +1779,10 @@ class _LilyGoAppState extends State<LilyGoApp> {
           _clientProductIsPreorder(line['product'] as Map<String, dynamic>),
     );
     if (!demo && !await _confirmClientInvoice(lines, total)) return;
-    if (walletAddress == null) await _connectWallet();
+    if (walletAddress == null) {
+      await _restorePortalSession();
+      if (walletAddress == null) await _connectWallet();
+    }
     if (walletAddress == null) return;
     final transactionId = DateTime.now().millisecondsSinceEpoch;
     for (final line in lines) {
@@ -1683,10 +1802,12 @@ class _LilyGoAppState extends State<LilyGoApp> {
         'lastname': '',
         'address': walletAddress,
         'phone_mobile': walletMobile,
+        'email': walletEmail.isEmpty ? null : walletEmail,
       },
       'order': {
         'id': transactionId,
         'ref': 'WEB-$transactionId',
+        'channel': activeChannel,
         'total_ht': total,
         'total_ttc': total * 1.05,
         'fk_statut': isPreorder ? 1 : 0,
@@ -1704,7 +1825,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
         'id': member['rowid'],
         'name': member['nom'],
         'code': member['code_client'],
-        'email': member['email'],
+        'email': walletEmail.isEmpty ? member['email'] : walletEmail,
       },
       'product': firstProduct,
       'total_ttc': total * 1.05,
@@ -2118,26 +2239,30 @@ class _LilyGoAppState extends State<LilyGoApp> {
           (descriptionsByProduct[productId] ??= {})[lang] = description;
         }
       }
-      final products = productRows
-          .where(
-            (product) => product['tosell'] == null || product['tosell'] != 0,
-          )
-          .map(
-            (product) => {
-              ...product,
-              'rowid': product['rowid'] ?? product['id'],
-              'category': product['category_label'] ?? _l.uncategorizedLabel,
-              'description': product['description'] ?? product['label'],
-              'labels':
-                  labelsByProduct[(product['rowid'] as num).toInt()] ?? {},
-              'descriptions':
-                  descriptionsByProduct[(product['rowid'] as num).toInt()] ??
-                  {},
-            },
-          )
+      final products = await Future.wait(
+        productRows
+            .where(
+              (product) => product['tosell'] == null || product['tosell'] != 0,
+            )
+            .map((product) async {
+              final clientProduct = {
+                ...product,
+                'rowid': product['rowid'] ?? product['id'],
+                'category': product['category_label'] ?? _l.uncategorizedLabel,
+                'description': product['description'] ?? product['label'],
+                'labels':
+                    labelsByProduct[(product['rowid'] as num).toInt()] ?? {},
+                'descriptions':
+                    descriptionsByProduct[(product['rowid'] as num).toInt()] ??
+                    {},
+              };
+              return await _embedBundledProductPhoto(clientProduct);
+            }),
+      );
+      final validProducts = products
           .where((product) => product['rowid'] != null)
           .toList();
-      await indexedDb.saveProducts(products);
+      await indexedDb.saveProducts(validProducts);
       await indexedDb.saveCmsItems(
         collection: 'site_content',
         items: await db.cmsItems('site_content'),
@@ -3405,8 +3530,16 @@ class _LilyGoAppState extends State<LilyGoApp> {
       final products = (envelope['products'] as List? ?? const [])
           .map((item) => Map<String, dynamic>.from(item as Map))
           .toList();
-      await indexedDb.saveProducts(products);
-      if (mounted) setState(() => clientProducts = products);
+      await indexedDb.saveProducts(
+        products,
+        revision: envelope['portal_revision']?.toString(),
+      );
+      if (mounted) {
+        setState(() {
+          clientProducts = products;
+          clientCatalogValidated = true;
+        });
+      }
       return;
     }
     if (type == 'cms_sync') {
@@ -3496,6 +3629,18 @@ class _LilyGoAppState extends State<LilyGoApp> {
     }
     if (type == 'client_order_ack') {
       if (_isPortalRoute()) return;
+      final ref = envelope['ref']?.toString();
+      final ackStatus = envelope['status']?.toString();
+      if (ref != null && ackStatus != null) {
+        final id = int.tryParse(ref.replaceFirst('WEB-', ''));
+        if (id != null) {
+          await indexedDb.updateEncryptedTransactionStatus(
+            id: id,
+            status: ackStatus == 'stored' ? 'approved' : ackStatus,
+          );
+          await _loadClientStats();
+        }
+      }
       if (mounted) setState(() => status = _l.orderSavedSnackbar);
       return;
     }
@@ -3654,9 +3799,21 @@ class _LilyGoAppState extends State<LilyGoApp> {
         'descriptions': descriptionsByProduct[productId] ?? {},
       };
     }).toList();
+    final portalRevision = jsonEncode(
+      items
+          .map(
+            (item) => {
+              'rowid': item['rowid'],
+              'updated_at': item['updated_at'],
+              'photo': item['photo'],
+            },
+          )
+          .toList(),
+    );
     _sendRtcMessage({
       'type': 'product_sync',
       'products': items,
+      'portal_revision': portalRevision,
       '__target_peer_id': targetPeerId,
     });
     _sendRtcMessage({
@@ -4033,15 +4190,6 @@ class _LilyGoAppState extends State<LilyGoApp> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Chip(label: Text(_shortWallet(walletAddress!))),
-              )
-            else if (localMemberAvailable)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: ActionChip(
-                  avatar: const Icon(Icons.verified_user_outlined, size: 18),
-                  label: const Text('Member registered'),
-                  onPressed: _connectWallet,
-                ),
               )
             else
               Padding(
@@ -4550,7 +4698,11 @@ class _LilyGoAppState extends State<LilyGoApp> {
     final photo = product['photo']?.toString();
     if (photo == null || photo.isEmpty) return const SizedBox.shrink();
     final photoMime = product['photo_mime']?.toString();
-    final image = (photoMime != null && photoMime.isNotEmpty)
+    final isBase64Photo =
+        photoMime != null &&
+        photoMime.isNotEmpty &&
+        !photo.startsWith('assets/');
+    final image = isBase64Photo
         ? Image.memory(
             base64Decode(photo),
             height: height,
@@ -4568,6 +4720,25 @@ class _LilyGoAppState extends State<LilyGoApp> {
             errorBuilder: (_, __, ___) => const SizedBox.shrink(),
           );
     return ClipRRect(borderRadius: BorderRadius.circular(12), child: image);
+  }
+
+  Future<Map<String, dynamic>> _embedBundledProductPhoto(
+    Map<String, dynamic> product,
+  ) async {
+    final photo = product['photo']?.toString();
+    final photoMime = product['photo_mime']?.toString();
+    if (photo == null || !photo.startsWith('assets/')) return product;
+    try {
+      final bytes = await rootBundle.load(photo);
+      return {
+        ...product,
+        'photo': base64Encode(bytes.buffer.asUint8List()),
+        'photo_mime': photoMime?.isNotEmpty == true ? photoMime : 'image/jpeg',
+      };
+    } catch (_) {
+      // Keep the path if the optional bundled asset is unavailable.
+      return {...product, 'photo_mime': null};
+    }
   }
 
   Widget _clientCartBar() {
@@ -6380,7 +6551,7 @@ class _LilyGoAppState extends State<LilyGoApp> {
               child: _InventoryMetric(
                 label: 'Shelf units',
                 value: _number(shelfTotal),
-              icon: Icons.view_agenda_outlined,
+                icon: Icons.view_agenda_outlined,
               ),
             ),
             const SizedBox(width: 12),
@@ -8302,7 +8473,11 @@ class _ProductDialogState extends State<_ProductDialog> {
         child: const Icon(Icons.image_outlined),
       );
     }
-    final image = (photoMime != null && photoMime!.isNotEmpty)
+    final isBase64Photo =
+        photoMime != null &&
+        photoMime!.isNotEmpty &&
+        !photo!.startsWith('assets/');
+    final image = isBase64Photo
         ? Image.memory(
             base64Decode(photo!),
             width: 72,

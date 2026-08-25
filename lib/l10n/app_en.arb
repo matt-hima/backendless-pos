@@ -27,7 +27,7 @@
   "statusPasskeyEnrolled": "Passkey sign-in is ready on this device",
 
   "accountEntryTitle": "Join member",
-  "accountEntryBody": "Enter your mobile number to send orders. Birthday is optional for access from another computer. Recovery words are optional for stronger security.",
+  "accountEntryBody": "Enter your mobile number to send orders. Email is optional for transaction details and status updates. This setup does not create a custom password, and password reset is not supported. Recovery words and a passkey provide stronger protection.",
   "accountChoiceTitle": "Advanced options",
   "accountChoiceBody": "Use these if you set a custom passphrase, or need to restore this account on a new device.",
   "accountUnlockButton": "Unlock with passphrase",
@@ -54,10 +54,10 @@
   "restoreButton": "Restore",
 
   "backupPhraseTitle": "Save your backup phrase",
-  "backupPhraseBody": "Write these 12 words down and keep them offline. Anyone with them can access this account.",
+  "backupPhraseBody": "Write these 12 words down and keep them offline. Anyone with them can access this account. If someone knows only your phone number and birthday, they should not be able to access your transactions when stronger security is enabled.",
   "backupPhraseConfirmCheckbox": "I wrote down my backup phrase",
 
-  "quickSetupWarning": "Mobile number is required. Birthday is optional for another computer, and recovery words are optional for higher security.",
+  "quickSetupWarning": "Mobile number is required. Email is optional for order details and status updates. No custom password is created and password reset is unavailable. Use recovery words and a passkey so phone number plus birthday alone cannot access your transactions.",
   "quickSetupMobileLabel": "Mobile number",
   "quickSetupBirthdayLabel": "Birthday (optional · member benefits)",
   "storeNameFieldLabel": "Store name",
@@ -71,7 +71,7 @@
   "preferencesBirthdayLabel": "Birthday (YYYY-MM-DD)",
   "preferencesLanguageLabel": "Language",
   "preferencesRememberCheckbox": "Remember these details",
-  "preferencesSecurityNote": "Higher security: keep your backup phrase offline and use it to restore this account if this device's storage is lost.",
+  "preferencesSecurityNote": "Higher security: enable a passkey and keep your backup phrase offline. No custom password is created and password reset is unavailable; phone number plus birthday alone should not grant transaction access.",
 
   "accountGateHeadline": "Sign in to open the store manager",
   "accountGateBody": "Your account is the store manager key. Local accounts are stored as encrypted keystores protected by your passphrase.",

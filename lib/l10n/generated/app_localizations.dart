@@ -228,7 +228,7 @@ abstract class AppLocalizations {
   /// No description provided for @accountEntryBody.
   ///
   /// In en, this message translates to:
-  /// **'Enter your mobile number to send orders. Birthday is optional for access from another computer. Recovery words are optional for stronger security.'**
+  /// **'Enter your mobile number to send orders. Email is optional for transaction details and status updates. This setup does not create a custom password, and password reset is not supported. Recovery words and a passkey provide stronger protection.'**
   String get accountEntryBody;
 
   /// No description provided for @accountChoiceTitle.
@@ -366,7 +366,7 @@ abstract class AppLocalizations {
   /// No description provided for @backupPhraseBody.
   ///
   /// In en, this message translates to:
-  /// **'Write these 12 words down and keep them offline. Anyone with them can access this account.'**
+  /// **'Write these 12 words down and keep them offline. Anyone with them can access this account. If someone knows only your phone number and birthday, they should not be able to access your transactions when stronger security is enabled.'**
   String get backupPhraseBody;
 
   /// No description provided for @backupPhraseConfirmCheckbox.
@@ -378,7 +378,7 @@ abstract class AppLocalizations {
   /// No description provided for @quickSetupWarning.
   ///
   /// In en, this message translates to:
-  /// **'Mobile number is required. Birthday is optional for another computer, and recovery words are optional for higher security.'**
+  /// **'Mobile number is required. Email is optional for order details and status updates. No custom password is created and password reset is unavailable. Use recovery words and a passkey so phone number plus birthday alone cannot access your transactions.'**
   String get quickSetupWarning;
 
   /// No description provided for @quickSetupMobileLabel.
@@ -456,7 +456,7 @@ abstract class AppLocalizations {
   /// No description provided for @preferencesSecurityNote.
   ///
   /// In en, this message translates to:
-  /// **'Higher security: keep your backup phrase offline and use it to restore this account if this device\'s storage is lost.'**
+  /// **'Higher security: enable a passkey and keep your backup phrase offline. No custom password is created and password reset is unavailable; phone number plus birthday alone should not grant transaction access.'**
   String get preferencesSecurityNote;
 
   /// No description provided for @accountGateHeadline.

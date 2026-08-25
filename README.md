@@ -1,4 +1,4 @@
-# BACKENDLESS POS: OFFLINE-FIRST CUSTOMER ORDERING AND ENTERPRISE RESOURCE MANAGEMENT SYSTEM
+# OFFLINE-FIRST CUSTOMER ORDERING AND ENTERPRISE RESOURCE MANAGEMENT SYSTEM
 
 ## Abstract
 
@@ -6,7 +6,7 @@ An offline-first commerce and enterprise resource management system is disclosed
 
 ## 1. Title
 
-**Backendless POS: Offline-First Customer Ordering and Enterprise Resource Management System**
+**Offline-First Customer Ordering and Enterprise Resource Management System**
 
 ## 2. Technical Field
 
@@ -25,6 +25,7 @@ The relational model combines selected ideas from established business-software 
 | [Dolibarr](https://github.com/Dolibarr/dolibarr) | A modular PHP web ERP/CRM application. Its business modules organize third parties, products, orders, invoices, payments, stock, warehouses, agenda, accounting, and related records around a shared company database. | The `erp` schema uses `llx_*`-style tables and relationships for customers, contacts, products, categories, orders, invoices, payments, warehouses, stock movements, POS cash fences, and settings. It preserves recognizable identifiers such as `rowid`, `fk_soc`, `fk_product`, `fk_statut`, and `fk_entrepot` while executing locally in DuckDB rather than in Dolibarr’s PHP server. |
 | [Rocket.Chat](https://github.com/RocketChat/Rocket.Chat) | A real-time communications platform organized around servers, channels/rooms, subscriptions, users, messages, and live message delivery. | The `chat` schema keeps the room/subscription/message relationship but scopes rooms to a store channel and wallet identity. Messages are exchanged through the project’s WebRTC channel and persisted locally instead of requiring a Rocket.Chat server. |
 | Headless CMS pattern | A CMS separates structured content management from presentation. Editors manage collections and fields while a client renders content through an API or local data store. | The `cms` schema stores collections, fields, and JSON-like items for storefront title, hero content, menu content, button labels, images, and theme settings. The Flutter storefront renders the content directly from its local snapshot. |
+| [Directus](https://github.com/directus/directus) | A database-first open data platform that adds an admin studio, permissions, and generated REST/GraphQL APIs over SQL data. Its collections and fields let non-technical users manage structured content while applications consume that content through APIs. | The system adopts the collection/field/item idea for the local `cms` schema and the portal’s **Site content** editor. Instead of running a Directus API server, the portal writes CMS items directly into DuckDB and syncs the published storefront snapshot to IndexedDB over the merchant channel. |
 | Legacy loyalty model | A simple rewards system commonly represents a member account plus a ledger of earned, spent, or adjusted points. | The `loyalty` schema retains `accounts` and `points_transactions` for compatibility with earlier project data. Current membership, booking points, rewards, and claims use the richer `suitecrm` schema. |
 | [OpenMES](https://github.com/Mes-Open/OpenMes) | A manufacturing-execution system tracks production resources and operational state, including machines, work activity, workers, scheduling, and downtime. Its purpose is to connect planned work with the real-time state of execution. | The `mes` schema applies that execution model to store and service operations: machines or tables, shelf locations, shelf stock, production/booking orders, workers, shifts, downtime reasons, and downtime history. |
 | [Keycloak](https://github.com/keycloak/keycloak) | An identity and access-management server centralizes realms, users, clients, roles, groups, authentication, and authorization for applications and services. | The `iam` schema keeps the realm/user/role/permission vocabulary but makes the wallet address the local user key. Permission checks happen inside the client and filter portal navigation and mutations; no Keycloak server is required. |
@@ -41,13 +42,14 @@ The implementation also combines established browser, device, and integration te
 - **IndexedDB:** provides browser-local object storage for the customer catalog snapshot, encrypted order envelopes, wallet-linked customer records, channels, chat, CMS items, bookings, and member sessions.
 - **[DuckDB](https://github.com/duckdb/duckdb) and DuckDB-Wasm:** DuckDB is an embedded SQL/analytics engine that executes in the host process rather than requiring a database server. The web target runs its WebAssembly build in a browser worker; Android links a native build through JNI. In this project it owns local ERP DDL, joins, aggregation, sales analysis, stock calculations, backups, and Parquet export.
 - **Web Workers and WebAssembly:** support browser-side database execution without moving the ERP workload to a conventional application server.
-- **[PeerJS](https://github.com/peers/peerjs) and WebRTC:** PeerJS supplies a browser API and signaling-assisted peer discovery, while WebRTC supplies the direct reliable data channel. This project derives a deterministic merchant peer ID from the store channel and sends order, CMS, chat, loyalty, and service messages over that connection.
-- **Native Android WebRTC:** exposes a `PeerConnectionFactory` through the Android platform layer for device-native peer capabilities.
-- **BitTorrent-style piece exchange:** the Android `PieceExchangeEngine` uses piece-oriented transfer concepts for binary content exchange and progress tracking.
+- **[PeerJS](https://github.com/peers/peerjs):** PeerJS supplies a browser API and signaling-assisted peer discovery on top of WebRTC. The system uses a deterministic merchant peer ID derived from the store channel, allowing a customer URL to find the merchant portal without a project-specific order server.
+- **[WebRTC native source](https://webrtc.googlesource.com/src/):** WebRTC provides peer connections, ICE negotiation, data channels, and media transport between browser or native endpoints. In the system, the browser data channel carries order, CMS, chat, loyalty, and service messages directly between customer and merchant; Android initializes a native `PeerConnectionFactory` for device-native peer capabilities.
+- **[BitTorrent protocol and BEPs](https://github.com/bittorrent/bittorrent.org):** BitTorrent divides content into pieces, exchanges piece availability between peers, transfers pieces independently, and verifies reconstructed content using hashes. The system does not implement a public torrent swarm or tracker; its Android `PieceExchangeEngine` adapts the piece-oriented model for controlled peer-to-peer binary content exchange, progress reporting, and integrity checks for assets such as second-display content.
 - **Android `MethodChannel`, JNI, and `DisplayManager`:** bridge Flutter to native DuckDB, WebRTC initialization, piece exchange, and compatible secondary displays.
-- **EVM wallet and EIP-1193 provider technology:** support injected wallets and browser-generated local wallets as user identity and key material.
-- **AES-GCM and wallet-derived keys:** protect customer order payloads in browser storage while preserving limited indexing fields.
-- **WebAuthn passkeys:** provide a device-bound unlock path for a locally encrypted wallet where the browser supports the required credential capability.
+- **[EIP-1193](https://eips.ethereum.org/EIPS/eip-1193) wallet-provider model:** EIP-1193 defines the common JavaScript provider interface used by browser wallets to expose accounts, chain information, and request methods to a web application. The system uses the injected provider through `flutter_web3` for merchant or customer wallet connection; it uses the wallet address as a portable identity key rather than requiring a conventional username/password account.
+- **[ethers.js](https://github.com/ethers-io/ethers.js) local wallet model:** ethers.js provides EVM wallet creation, recovery-phrase restoration, signing, and encrypted JSON keystore support. The system uses this model in `web/local_wallet_bridge.js` to generate or restore a local wallet, persist only an encrypted keystore, and keep the decrypted private key inside the browser bridge during unlock and encryption operations.
+- **Wallet-derived application encryption:** AES-GCM protects customer order payloads in browser storage. The active wallet identity is used to derive the application key, so the encrypted order envelope is associated with its owner while channel and wallet fields remain available for local filtering.
+- **[W3C WebAuthn](https://github.com/w3c/webauthn) and FIDO2/passkeys:** WebAuthn uses a challenge and an authenticator-held public/private key pair to prove control of a credential without sending the private key to the website. The system uses the browser’s WebAuthn/PRF capability in `web/passkey_bridge.js` as a local unlock factor: a passkey-derived secret unlocks the encrypted local-wallet passphrase, which then unlocks the ethers.js keystore. The passkey is therefore an unlock mechanism for the local wallet, not a replacement for the wallet address or a remote identity server.
 - **Parquet:** provides a compact, portable export artifact for the selected order hand-off view.
 - **[FastAPI](https://github.com/fastapi/fastapi) and HTTP:** FastAPI is a Python framework used here only to implement `mock_server/main.py`, a small reference device relay. That relay exposes health checking, HMAC device attestation, and bounded binary upload; it stores the Parquet artifact and does not execute ERP SQL, host the Flutter app, or replace the local DuckDB runtime.
 - **Firebase Hosting and static SPA deployment:** host the compiled Flutter web client with client-side route rewrites. Other static hosting platforms can provide the same deployment role.
@@ -88,7 +90,7 @@ flowchart LR
     K[("DuckDB-Wasm or\nnative DuckDB")]
     W["PeerJS + WebRTC\nmerchant channel"]
     X["Parquet export"]
-    R["Optional storage relay\nor LilyGO target"]
+    R["Optional storage relay\nor storage target"]
     G["Optional Google\nDrive / Sheets"]
 
     C --> I
@@ -218,7 +220,7 @@ The Android implementation initializes a native WebRTC `PeerConnectionFactory`. 
 
 ### 6.8 Optional storage synchronization
 
-The reference implementation in `mock_server/main.py` represents a LilyGO or LAN storage target. It does not execute ERP logic. The target provides:
+The reference implementation in `mock_server/main.py` represents a LAN or embedded storage target. It does not execute ERP logic. The target provides:
 
 | Interface | Function |
 | --- | --- |
@@ -234,18 +236,49 @@ The portal can export and restore a JSON envelope containing local DuckDB and In
 
 Browser notifications, keep-awake behavior, QR scanning, channel printing, and secondary-display opening are optional platform capabilities. Their absence does not prevent local catalog, ordering, or ERP operation.
 
-### 6.10 Identity and data protection
+### 6.10 Authentication, authorization, and data protection
 
-The identity layer supports:
+Authentication is a major part of the system architecture rather than an external add-on. The design separates four related concerns:
 
-- injected EIP-1193 wallets through `flutter_web3`;
-- browser-generated EVM wallets through the local wallet bridge;
-- encrypted JSON keystore persistence;
-- recovery phrase restoration;
-- WebAuthn passkey-assisted unlock; and
-- wallet-linked customer and merchant records.
+1. **Identity:** a wallet address identifies a customer or merchant within the local store data model.
+2. **Authentication:** an injected wallet, local wallet passphrase, or FIDO/WebAuthn passkey demonstrates control of the local identity.
+3. **Authorization:** following the realm/user/role/permission separation used by [Keycloak](https://github.com/keycloak/keycloak), the local `iam` schema maps the authenticated wallet address to roles and permissions that control portal sections and mutations.
+4. **Data protection:** wallet-derived AES-GCM keys protect customer order payloads and selected profile data in browser storage.
 
-The local wallet private key remains within the browser bridge during the relevant operation. Customer order payloads use AES-GCM encryption with a wallet-derived key. Device attestation proves possession of the storage target’s local key and does not by itself authenticate a merchant or customer.
+#### 6.10.1 Supported authentication modes
+
+- **Injected wallet:** a browser wallet exposes an EIP-1193 provider. The application requests the active account through `flutter_web3`, normalizes the wallet address, and uses it to load or create the local customer or merchant record.
+- **Local wallet:** the browser bridge creates an EVM wallet using ethers.js, shows the recovery phrase once for backup, and stores only the encrypted JSON keystore in local storage. A passphrase is required to decrypt the keystore.
+- **Wallet restoration:** a user can restore the same local identity from a recovery phrase and a new passphrase. The resulting address reconnects the user to wallet-scoped local records where those records are available.
+- **FIDO/WebAuthn passkey:** when supported, `web/passkey_bridge.js` enrolls a platform passkey and uses the WebAuthn PRF output as a device-bound unlock factor. The derived secret unlocks the encrypted local-wallet passphrase; it does not expose or replace the private key.
+- **Demo mode:** a non-production evaluation path seeds sample data and uses a demo identity. It is intentionally separate from real wallet authentication.
+
+#### 6.10.2 Authentication and order lifecycle
+
+```text
+wallet / local keystore / passkey
+              ↓
+normalized wallet address
+              ↓
+local customer or merchant profile
+              ↓
+IAM role and permission lookup
+              ↓
+wallet-derived encryption key for private local payloads
+```
+
+For a customer, the wallet address scopes the customer profile, encrypted order history, chat, and loyalty records. For a merchant, the wallet address identifies the operator, selects the merchant record, establishes the store channel, and determines which portal operations are visible. The wallet address is not itself a permission; permissions come from the local role mapping. Unlike Keycloak, the system does not run a separate realm server, token endpoint, client registry, or external user directory; the relevant authorization records and checks execute locally in DuckDB.
+
+#### 6.10.3 Key and trust boundaries
+
+- The injected provider can identify an account but does not give the application the private key.
+- A local wallet private key is decrypted only inside the browser bridge during the operation that needs it; plaintext key material is not returned to Dart or written to IndexedDB.
+- The encrypted customer order envelope is stored locally with only channel and wallet fields available for filtering.
+- FIDO/WebAuthn protects local-wallet unlock on a supported device. It is not a hosted identity service and does not make the local database remotely recoverable.
+- IAM permissions are local application authorization, not a claim that an external identity server has authenticated the operator.
+- Device attestation authenticates possession of the storage target’s device key. It does not authenticate the customer or merchant wallet.
+
+This arrangement allows authentication, authorization, and encryption to continue while the application is offline, while keeping optional peer signaling, storage relay, and Google OAuth integrations outside the core identity path.
 
 ## 7. Example Operating Procedure
 
@@ -311,7 +344,7 @@ The project’s main technical features are:
 - **Full local ERP model:** the database covers customers, products, categories, orders, invoices, payments, warehouses, shelf stock, POS cash fences, bookings, loyalty, content, roles, permissions, machines, workers, shifts, and downtime.
 - **Wallet-linked identity:** users can connect an injected EIP-1193 wallet, create or restore a browser wallet, or unlock a local wallet with a passphrase or supported WebAuthn passkey.
 - **Encrypted customer orders:** order payloads are protected with AES-GCM using a wallet-derived key, while only the fields needed for local filtering remain available in cleartext.
-- **Optional storage hand-off:** the portal exports a selected order view as Parquet and can upload it through an authenticated HTTP interface to a LAN relay, LilyGO-style device, or another compatible storage target.
+- **Optional storage hand-off:** the portal exports a selected order view as Parquet and can upload it through an authenticated HTTP interface to a LAN relay, embedded storage device, or another compatible target.
 - **Device and platform integrations:** QR provisioning, browser or thermal printing, notifications, keep-awake behavior, JSON backup/restore, Google Drive and Sheets integration, Android-native DuckDB, WebRTC, piece exchange, and secondary-display support.
 - **Permission-aware operations:** wallet-linked roles control which portal sections and mutations are available to each operator.
 
@@ -319,4 +352,4 @@ Together, these features provide a single local-first workflow from customer dis
 
 ## 11. License
 
-LilyGO ERP is licensed under the [GNU General Public License v3.0](LICENSE).
+This project is licensed under the [GNU General Public License v3.0](LICENSE).

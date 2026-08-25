@@ -2,8 +2,8 @@
 // customer-facing menu; DuckDB remains the relational portal/export database.
 (() => {
   const DB_NAME = 'dolibarr_client_db';
-  const DB_VERSION = 8;
-  const ALL_STORES = ['llx_product', 'llx_commande', 'llx_commandedet', 'llx_societe', 'llx_channel', 'llx_livechat', 'cms_items', 'bookings', 'member_session'];
+  const DB_VERSION = 9;
+  const ALL_STORES = ['llx_product', 'llx_commande', 'llx_commandedet', 'llx_societe', 'llx_channel', 'llx_livechat', 'cms_items', 'bookings', 'member_session', 'sync_meta'];
   let database;
 
   function open() {
@@ -26,6 +26,7 @@
         if (!cms.indexNames.contains('collection')) cms.createIndex('collection', 'collection');
         if (!db.objectStoreNames.contains('bookings')) db.createObjectStore('bookings', {keyPath: 'id'});
         if (!db.objectStoreNames.contains('member_session')) db.createObjectStore('member_session', {keyPath: 'id'});
+        if (!db.objectStoreNames.contains('sync_meta')) db.createObjectStore('sync_meta', {keyPath: 'id'});
       };
       request.onsuccess = () => { database = request.result; resolve(database); };
       request.onerror = () => reject(request.error);
@@ -69,14 +70,20 @@
       const rows = await requestValue(transaction(['llx_product']).objectStore('llx_product').getAll());
       return JSON.stringify(rows);
     },
-    async saveProducts(productsJson) {
+    async saveProducts(productsJson, revision = null) {
       await open();
       const products = JSON.parse(productsJson);
-      const tx = transaction(['llx_product'], 'readwrite');
+      const tx = transaction(['llx_product', 'sync_meta'], 'readwrite');
       const store = tx.objectStore('llx_product');
       store.clear();
       for (const product of products) store.put(product);
+      tx.objectStore('sync_meta').put({id: 'catalog', revision, updated_at: new Date().toISOString()});
       await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
+    },
+    async catalogRevision() {
+      await open();
+      const row = await requestValue(transaction(['sync_meta']).objectStore('sync_meta').get('catalog'));
+      return row?.revision || null;
     },
     async saveWalletThirdParty(thirdpartyJson) {
       await open();
@@ -117,12 +124,37 @@
         }
       }
     },
+    async memberSession() {
+      await open();
+      const sessions = await requestValue(transaction(['member_session']).objectStore('member_session').getAll());
+      const valid = sessions
+        .filter((session) => new Date(session.expires_at).getTime() > Date.now())
+        .sort((a, b) => new Date(b.expires_at).getTime() - new Date(a.expires_at).getTime());
+      return JSON.stringify(valid[0] || null);
+    },
     async saveEncryptedTransaction(transactionJson) {
       await open();
       const transactionObject = JSON.parse(transactionJson);
+      transactionObject.portal_status = 'pending';
       const tx = transaction(['llx_commande'], 'readwrite');
       tx.objectStore('llx_commande').put(transactionObject);
       await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
+    },
+    async updateTransactionStatus(rowid, status) {
+      await open();
+      await new Promise((resolve, reject) => {
+        const tx = transaction(['llx_commande'], 'readwrite');
+        const store = tx.objectStore('llx_commande');
+        const request = store.get(rowid);
+        request.onsuccess = () => {
+          if (request.result) {
+            request.result.portal_status = status;
+            store.put(request.result);
+          }
+        };
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+      });
     },
     async transactions(channel, wallet) {
       await open();

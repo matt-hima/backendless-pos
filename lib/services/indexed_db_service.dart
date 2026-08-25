@@ -18,10 +18,23 @@ class IndexedDbService {
         .toList();
   }
 
-  Future<void> saveProducts(List<Map<String, dynamic>> products) async {
+  Future<void> saveProducts(
+    List<Map<String, dynamic>> products, {
+    String? revision,
+  }) async {
     await _promise(
-      js_util.callMethod(_bridge, 'saveProducts', [jsonEncode(products)]),
+      js_util.callMethod(_bridge, 'saveProducts', [
+        jsonEncode(products),
+        revision,
+      ]),
     );
+  }
+
+  Future<String?> catalogRevision() async {
+    final raw = await _promise(
+      js_util.callMethod(_bridge, 'catalogRevision', const []),
+    );
+    return raw?.toString();
   }
 
   Future<void> saveWalletThirdParty(Map<String, dynamic> thirdparty) async {
@@ -53,6 +66,14 @@ class IndexedDbService {
         DateTime.now().toIso8601String(),
       ]),
     );
+  }
+
+  Future<Map<String, dynamic>?> memberSession() async {
+    final raw = await _promise(
+      js_util.callMethod(_bridge, 'memberSession', const []),
+    );
+    if (raw == null || raw == 'null') return null;
+    return Map<String, dynamic>.from(jsonDecode(raw as String) as Map);
   }
 
   Future<Map<String, dynamic>?> walletThirdParty(String wallet) async {
@@ -94,6 +115,15 @@ class IndexedDbService {
     return (jsonDecode(raw as String) as List)
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList();
+  }
+
+  Future<void> updateEncryptedTransactionStatus({
+    required int id,
+    required String status,
+  }) async {
+    await _promise(
+      js_util.callMethod(_bridge, 'updateTransactionStatus', [id, status]),
+    );
   }
 
   Future<Map<String, dynamic>> createChannel(

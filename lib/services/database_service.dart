@@ -15,6 +15,7 @@ class DatabaseService {
       CREATE SCHEMA IF NOT EXISTS chat;
       CREATE SCHEMA IF NOT EXISTS cms;
       CREATE SCHEMA IF NOT EXISTS loyalty;
+      CREATE SCHEMA IF NOT EXISTS notifications;
       CREATE TABLE IF NOT EXISTS erp.llx_societe (
         rowid BIGINT PRIMARY KEY, nom VARCHAR NOT NULL, code_client VARCHAR,
         code_fournisseur VARCHAR, client SMALLINT DEFAULT 0,
@@ -23,9 +24,15 @@ class DatabaseService {
       );
       CREATE TABLE IF NOT EXISTS erp.llx_socpeople (
         rowid BIGINT PRIMARY KEY, fk_soc BIGINT NOT NULL, firstname VARCHAR,
-        lastname VARCHAR, address VARCHAR, phone_mobile VARCHAR, birthday VARCHAR,
+        lastname VARCHAR, address VARCHAR, phone_mobile VARCHAR, email VARCHAR, birthday VARCHAR,
         wallet VARCHAR,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS notifications.email_outbox (
+        id BIGINT PRIMARY KEY, wallet VARCHAR, email VARCHAR NOT NULL,
+        channel VARCHAR, event_type VARCHAR NOT NULL, subject VARCHAR NOT NULL,
+        body VARCHAR NOT NULL, status VARCHAR DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       CREATE TABLE IF NOT EXISTS erp.llx_commande (
         rowid BIGINT PRIMARY KEY, ref VARCHAR NOT NULL, fk_soc BIGINT NOT NULL,
@@ -310,6 +317,9 @@ class DatabaseService {
       'ALTER TABLE erp.llx_societe ADD COLUMN IF NOT EXISTS wallet VARCHAR;',
     );
     await execute(
+      'ALTER TABLE erp.llx_socpeople ADD COLUMN IF NOT EXISTS email VARCHAR;',
+    );
+    await execute(
       'ALTER TABLE iam.users ADD COLUMN IF NOT EXISTS keycloak_subject VARCHAR;',
     );
     await execute(
@@ -545,9 +555,9 @@ class DatabaseService {
       INSERT INTO erp.llx_societe (rowid, nom, code_client, client, email)
       VALUES ($companyId, ${_q(payload.thirdparty['name'])}, ${_q(payload.thirdparty['code'])}, 1, ${_q(payload.thirdparty['email'])})
       ON CONFLICT (rowid) DO UPDATE SET nom = EXCLUDED.nom, code_client = EXCLUDED.code_client, client = 1, email = EXCLUDED.email, updated_at = now();
-      INSERT INTO erp.llx_socpeople (rowid, fk_soc, firstname, lastname, address, phone_mobile)
-      VALUES ($contactId, $companyId, ${_q(payload.contact['firstname'])}, ${_q(payload.contact['lastname'])}, ${payload.contact['address'] == null ? 'NULL' : _q(payload.contact['address'])}, ${payload.contact['phone_mobile'] == null ? 'NULL' : _q(payload.contact['phone_mobile'])})
-      ON CONFLICT (rowid) DO UPDATE SET fk_soc = EXCLUDED.fk_soc, firstname = EXCLUDED.firstname, lastname = EXCLUDED.lastname, address = EXCLUDED.address, phone_mobile = EXCLUDED.phone_mobile, updated_at = now();
+      INSERT INTO erp.llx_socpeople (rowid, fk_soc, firstname, lastname, address, phone_mobile, email)
+      VALUES ($contactId, $companyId, ${_q(payload.contact['firstname'])}, ${_q(payload.contact['lastname'])}, ${payload.contact['address'] == null ? 'NULL' : _q(payload.contact['address'])}, ${payload.contact['phone_mobile'] == null ? 'NULL' : _q(payload.contact['phone_mobile'])}, ${payload.contact['email'] == null || payload.contact['email'].toString().isEmpty ? 'NULL' : _q(payload.contact['email'])})
+      ON CONFLICT (rowid) DO UPDATE SET fk_soc = EXCLUDED.fk_soc, firstname = EXCLUDED.firstname, lastname = EXCLUDED.lastname, address = EXCLUDED.address, phone_mobile = EXCLUDED.phone_mobile, email = EXCLUDED.email, updated_at = now();
       INSERT INTO erp.llx_commande (rowid, ref, fk_soc, total_ht, total_ttc, date_livraison, fk_statut)
       VALUES ($orderId, ${_q(payload.order['ref'])}, $companyId, ${payload.order['total_ht']}, ${payload.order['total_ttc']}, ${payload.order['date_livraison'] == null ? 'NULL' : "DATE '${payload.order['date_livraison']}'"}, ${payload.order['fk_statut'] ?? 0})
       ON CONFLICT (rowid) DO UPDATE SET ref = EXCLUDED.ref, fk_soc = EXCLUDED.fk_soc, total_ht = EXCLUDED.total_ht, total_ttc = EXCLUDED.total_ttc, date_livraison = EXCLUDED.date_livraison, fk_statut = EXCLUDED.fk_statut, updated_at = now();
@@ -608,6 +618,7 @@ class DatabaseService {
     required String wallet,
     required String phoneMobile,
     required String birthday,
+    String email = '',
   }) async {
     final normalized = wallet.trim().toLowerCase();
     if (normalized.length < 18 || !normalized.startsWith('0x')) return;
@@ -627,10 +638,49 @@ class DatabaseService {
         : int.parse(existingContact.first['rowid'].toString());
     await execute('''
       UPDATE erp.llx_societe SET fournisseur = 1, is_merchant = true, updated_at = now() WHERE rowid = $companyId;
-      INSERT INTO erp.llx_socpeople (rowid, fk_soc, firstname, lastname, address, phone_mobile, birthday)
-      VALUES ($resolvedContactId, $companyId, ${_q('Wallet')}, ${_q(shortWallet)}, ${_q(normalized)}, ${_q(phoneMobile)}, ${_q(birthday)})
-      ON CONFLICT (rowid) DO UPDATE SET fk_soc = EXCLUDED.fk_soc, firstname = EXCLUDED.firstname, lastname = EXCLUDED.lastname, address = EXCLUDED.address, phone_mobile = EXCLUDED.phone_mobile, birthday = EXCLUDED.birthday, updated_at = now();
+      INSERT INTO erp.llx_socpeople (rowid, fk_soc, firstname, lastname, address, phone_mobile, email, birthday)
+      VALUES ($resolvedContactId, $companyId, ${_q('Wallet')}, ${_q(shortWallet)}, ${_q(normalized)}, ${_q(phoneMobile)}, ${email.isEmpty ? 'NULL' : _q(email)}, ${_q(birthday)})
+      ON CONFLICT (rowid) DO UPDATE SET fk_soc = EXCLUDED.fk_soc, firstname = EXCLUDED.firstname, lastname = EXCLUDED.lastname, address = EXCLUDED.address, phone_mobile = EXCLUDED.phone_mobile, email = EXCLUDED.email, birthday = EXCLUDED.birthday, updated_at = now();
     ''');
+  }
+
+  Future<void> queueMemberOrderEmail({
+    required String wallet,
+    required String email,
+    required String channel,
+    required String eventType,
+    required String subject,
+    required String body,
+  }) async {
+    if (email.trim().isEmpty) return;
+    await execute('''
+      INSERT INTO notifications.email_outbox
+        (id, wallet, email, channel, event_type, subject, body, status)
+      VALUES (${_nextId()}, ${_q(wallet)}, ${_q(email.trim())}, ${_q(channel)},
+        ${_q(eventType)}, ${_q(subject)}, ${_q(body)}, 'pending');
+    ''');
+  }
+
+  Future<void> queueOrderStatusEmail(int orderId, String statusLabel) async {
+    final rowsForOrder = await rows('''
+      SELECT c.ref, c.total_ttc, c.fk_statut, s.email, s.wallet
+      FROM erp.llx_commande c
+      JOIN erp.llx_societe s ON s.rowid = c.fk_soc
+      WHERE c.rowid = $orderId
+    ''');
+    if (rowsForOrder.isEmpty) return;
+    final row = rowsForOrder.first;
+    final email = row['email']?.toString() ?? '';
+    if (email.isEmpty) return;
+    await queueMemberOrderEmail(
+      wallet: row['wallet']?.toString() ?? '',
+      email: email,
+      channel: 'portal',
+      eventType: 'order.status',
+      subject: 'Order ${row['ref']} status update',
+      body:
+          'Order ${row['ref']} is now $statusLabel. Total: ${row['total_ttc']}.',
+    );
   }
 
   Future<int> orderCount() async =>
